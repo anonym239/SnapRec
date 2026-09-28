@@ -136,7 +136,7 @@ class SettingsWindow(ctk.CTkToplevel):
             fg_color=theme.SURFACE_2, command=self._resolution_changed)
         self.resolution.set("1080p" if self.cfg.get("resolution", "1080p") == "1080p" else "Original")
         self.resolution.pack(side="right")
-        ctk.CTkLabel(c, text="1080p = jedes Video wird als 1920 × 1080 gespeichert (passend skaliert).",
+        ctk.CTkLabel(c, text="1080p = 1920 × 1080 (quer) bzw. 1080 × 1920 (hochkant). Auswahl rastet auf 16:9 ein.",
                      font=font(11), text_color=theme.MUTED, anchor="w").pack(fill="x", padx=18)
         r = row(c, "Bildrate")
         self.fps = ctk.CTkSegmentedButton(

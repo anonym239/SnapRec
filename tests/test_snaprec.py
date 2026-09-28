@@ -259,3 +259,43 @@ def test_library_list_and_delete(tmp_path, monkeypatch):
     monkeypatch.setattr(send2trash, "send2trash", lambda p: (trashed.append(p), os.remove(p)))
     assert library.delete_recording(tmp_path / "a.mp4") is True
     assert not (tmp_path / "a.mp4").exists() and trashed
+
+
+def test_portrait_region_becomes_vertical_1080p():
+    """Fehler aus der Praxis: ein hoher, schmaler Bereich (z. B. ein Handy-Video)
+    landete mit riesigen schwarzen Rändern in einem 1920×1080-Video."""
+    from snaprec import recorder
+    portrait = utils.normalize_region(0, 0, 562, 1000)
+    assert recorder.output_size(portrait, "1080p") == (1080, 1920)
+    assert recorder.upscale_factor(portrait, "1080p") > 1.9
+    vf = recorder.video_filter(portrait, "1080p")
+    assert "unsharp" in vf                      # beim Vergrößern nachschärfen
+    exact = utils.normalize_region(0, 0, 608, 1080)   # 9:16 -> keine Ränder nötig
+    assert "pad=" not in recorder.video_filter(exact, "1080p")
+    assert recorder.video_filter(utils.normalize_region(0, 0, 2560, 1440), "1080p").startswith("scale=1920:1080")
+
+
+def test_selection_snaps_to_16_9_and_9_16():
+    from types import SimpleNamespace
+    from snaprec.overlay import SelectionOverlay
+    ov = SimpleNamespace(lock_ratio=True, _start=(100, 100), screen={"width": 1920, "height": 1080})
+    snap = SelectionOverlay._constrain
+    assert snap(ov, 900, 300) == (900, 550)          # quer: 800 breit -> 450 hoch
+    assert snap(ov, 400, 900) == (550, 900)          # hochkant: 800 hoch -> 450 breit
+    assert snap(ov, 400, 900, state=0x1) == (400, 900)   # Shift = frei
+    x2, y2 = snap(ov, 1900, 1050)                    # am Bildschirmrand begrenzt
+    assert x2 <= 1920 and y2 <= 1080 and abs((x2 - 100) / (y2 - 100) - 16 / 9) < 0.01
+    ov.lock_ratio = False
+    assert snap(ov, 400, 900) == (400, 900)
+
+
+@needs_display
+def test_portrait_recording_is_1080x1920(tmp_path):
+    path = tmp_path / "hoch.mp4"
+    rec = Recorder(utils.normalize_region(0, 0, 562, 1000), 20, str(path), resolution="1080p")
+    rec.start()
+    time.sleep(0.6)
+    rec.stop()
+    rec.join(timeout=30)
+    assert rec.error is None
+    assert "1080x1920" in _streams(path)

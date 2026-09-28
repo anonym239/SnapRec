@@ -368,7 +368,8 @@ class App:
 
     def _open_overlay(self, full):
         self.overlay = SelectionOverlay(self.root, self.cfg["countdown"], self._on_selected,
-                                        preselect_monitor=full)
+                                        preselect_monitor=full,
+                                        resolution=self.cfg.get("resolution", "1080p"))
 
     def _on_selected(self, region):
         self.overlay = None
@@ -469,8 +470,15 @@ class App:
             height=36, justify="left")
         if self.library_window and self.library_window.winfo_exists():
             self.library_window.refresh()
-        if rec.warnings:
-            self.result_warn.configure(text="⚠ " + "\n⚠ ".join(rec.warnings))
+        notes = list(rec.warnings)
+        from snaprec.recorder import upscale_factor
+        r = rec.region
+        if upscale_factor(r, rec.resolution) > 1.25:
+            notes.append(f"Der Bereich hatte nur {r['width']}×{r['height']} Pixel und wurde auf "
+                         f"{w}×{h} hochskaliert – für maximale Schärfe einen größeren Bereich "
+                         f"oder Vollbild aufnehmen.")
+        if notes:
+            self.result_warn.configure(text="⚠ " + "\n⚠ ".join(notes))
             self.result_warn.pack(fill="x", pady=(4, 0))
         else:
             self.result_warn.pack_forget()

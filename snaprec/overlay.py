@@ -18,10 +18,13 @@ class SelectionOverlay(tk.Toplevel):
 
     MIN_SIZE = 16
 
-    def __init__(self, master, countdown, on_done, preselect_monitor=False):
+    def __init__(self, master, countdown, on_done, preselect_monitor=False, resolution="original"):
         super().__init__(master)
         self.on_done = on_done
         self.countdown = countdown
+        self.resolution = resolution
+        # Bei 1080p rastet die Auswahl auf 16:9 bzw. 9:16 ein (Shift = frei)
+        self.lock_ratio = resolution == "1080p"
         self.screen, self.monitors = virtual_screen()
         s = self.screen
 
@@ -69,8 +72,9 @@ class SelectionOverlay(tk.Toplevel):
         self.bind("<Escape>", lambda e: self.cancel())
         self.bind("<Return>", self._whole_monitor)
 
+        ratio_hint = "   ·   16:9 – Shift = frei" if self.lock_ratio else ""
         self._show_hint("Bereich mit der Maus aufziehen   ·   Doppelklick = ganzer Monitor"
-                        "   ·   Esc = Abbrechen", "select")
+                        f"{ratio_hint}   ·   Esc = Abbrechen", "select")
         self.after(10, self._fade_in)
         if preselect_monitor:
             self.after(60, self._whole_monitor)
@@ -114,7 +118,18 @@ class SelectionOverlay(tk.Toplevel):
             c.itemconfigure(item, state="normal")
             c.tag_raise(item)
 
-        label = theme.pill(f"{(right - left) // 2 * 2} × {(bottom - top) // 2 * 2}", 28)
+        w, h = (right - left) // 2 * 2, (bottom - top) // 2 * 2
+        text = f"{w} × {h}"
+        fg = theme.TEXT
+        if self.resolution == "1080p" and w > 0 and h > 0:
+            from snaprec.recorder import output_size, upscale_factor
+            region = {"width": w, "height": h}
+            ow, oh = output_size(region, "1080p")
+            text += f"   →   {ow} × {oh}"
+            if upscale_factor(region, "1080p") > 1.25:
+                text += "  ·  wird hochskaliert, größer = schärfer"
+                fg = theme.PAUSE
+        label = theme.pill(text, 28, fg=fg)
         ly = top - label.height - 8 if top > label.height + 12 else bottom + 8
         self._place_image(self._size_item, label, left, ly)
 
@@ -157,18 +172,39 @@ class SelectionOverlay(tk.Toplevel):
         for item in (self._guide_h, self._guide_v, self._hint_item):
             self.canvas.itemconfigure(item, state="hidden")
 
+    def _constrain(self, x2, y2, state=0):
+        """Auf 16:9 (quer) bzw. 9:16 (hochkant) einrasten, außer Shift ist gedrückt."""
+        if not self.lock_ratio or state & 0x0001:
+            return x2, y2
+        x1, y1 = self._start
+        dx, dy = x2 - x1, y2 - y1
+        sx, sy = (1 if dx >= 0 else -1), (1 if dy >= 0 else -1)
+        w, h = abs(dx), abs(dy)
+        ratio = 16 / 9 if w >= h else 9 / 16
+        if ratio > 1:
+            h = w / ratio
+        else:
+            w = h * ratio
+        max_w = self.screen["width"] - x1 if sx > 0 else x1
+        max_h = self.screen["height"] - y1 if sy > 0 else y1
+        if w > max_w:
+            w, h = max_w, max_w / ratio
+        if h > max_h:
+            h, w = max_h, max_h * ratio
+        return round(x1 + sx * w), round(y1 + sy * h)
+
     def _drag(self, event):
         if not self._start or self._region:
             return
         x1, y1 = self._start
-        x2, y2 = self._clamp(event.x, event.y)
+        x2, y2 = self._constrain(*self._clamp(event.x, event.y), event.state)
         self._set_selection(min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
 
     def _release(self, event):
         if not self._start or self._region:
             return
         x1, y1 = self._start
-        x2, y2 = self._clamp(event.x, event.y)
+        x2, y2 = self._constrain(*self._clamp(event.x, event.y), event.state)
         self._start = None
         ox, oy = self.screen["left"], self.screen["top"]
         region = normalize_region(x1 + ox, y1 + oy, x2 + ox, y2 + oy)

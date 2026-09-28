@@ -12,8 +12,8 @@ from snaprec.utils import MSS
 
 CURSOR_SHAPE = [(0, 0), (0, 17), (4, 13), (7, 20), (10, 19), (7, 12), (12, 12)]
 
-# Ausgabe-Auflösungen: None = so groß wie der aufgenommene Bereich
-RESOLUTIONS = {"1080p": (1920, 1080), "original": None}
+# Ausgabe-Auflösungen: "1080p" = 1920×1080 (quer) bzw. 1080×1920 (hochkant)
+RESOLUTIONS = ("1080p", "original")
 
 
 def draw_cursor(img, x, y):
@@ -24,17 +24,30 @@ def draw_cursor(img, x, y):
 
 
 def output_size(region, resolution):
-    return RESOLUTIONS.get(resolution) or (region["width"], region["height"])
+    """Größe des fertigen Videos. Hochkant-Bereiche werden zu 1080×1920."""
+    if resolution != "1080p":
+        return region["width"], region["height"]
+    return (1920, 1080) if region["width"] >= region["height"] else (1080, 1920)
+
+
+def upscale_factor(region, resolution):
+    """> 1, wenn der Bereich kleiner ist als das Video und hochskaliert wird."""
+    w, h = output_size(region, resolution)
+    return min(w / max(1, region["width"]), h / max(1, region["height"]))
 
 
 def video_filter(region, resolution):
-    """ffmpeg-Filter: Bereich passend in 1920×1080 skalieren (Ränder schwarz)."""
-    target = RESOLUTIONS.get(resolution)
-    if not target or target == (region["width"], region["height"]):
+    """ffmpeg-Filter: Bereich auf 1080p skalieren (bei abweichendem
+    Seitenverhältnis mit schwarzen Rändern), beim Vergrößern leicht nachschärfen."""
+    w, h = output_size(region, resolution)
+    if (w, h) == (region["width"], region["height"]):
         return None
-    w, h = target
+    sharpen = ",unsharp=5:5:0.5:3:3:0.0" if upscale_factor(region, resolution) > 1.1 else ""
+    same_ratio = abs(region["width"] / region["height"] - w / h) / (w / h) < 0.01
+    if same_ratio:
+        return f"scale={w}:{h}:flags=lanczos{sharpen},setsar=1"
     return (f"scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2"
-            f":flags=lanczos,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1")
+            f":flags=lanczos{sharpen},pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1")
 
 
 class Recorder(threading.Thread):
@@ -164,7 +177,7 @@ class Recorder(threading.Thread):
 
     def _record_video(self, path):
         r = self.region
-        params = ["-crf", "20", "-preset", "veryfast", "-movflags", "+faststart"]
+        params = ["-crf", "18", "-preset", "veryfast", "-movflags", "+faststart"]
         vf = video_filter(r, self.resolution)
         if vf:
             params = ["-vf", vf] + params

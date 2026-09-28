@@ -41,7 +41,7 @@ Aus, **3**, 5 oder 10 Sekunden – mit animiertem Ring direkt über deinem Berei
 <td width="33%" valign="top">
 
 ### 🎬 Immer 1080p
-Jedes Video wird als **1920 × 1080** (H.264-MP4) gespeichert – der Bereich wird passend skaliert. Läuft überall: WhatsApp, Discord, YouTube, PowerPoint.
+Jedes Video wird in **1080p** (H.264-MP4) gespeichert: quer als 1920 × 1080, hochkant als 1080 × 1920 (TikTok/Shorts). Die Auswahl rastet auf 16:9 bzw. 9:16 ein (<kbd>Shift</kbd> = frei) – so gibt es keine schwarzen Ränder.
 
 </td>
 </tr>
@@ -107,6 +107,9 @@ Mehrere Monitore, Mauszeiger optional, 15–60 fps, Speicherort frei wählbar, a
 </tr>
 </table>
 
+> [!TIP]
+> **Tipp für maximale Schärfe:** 1080p kann nur so scharf sein wie der aufgenommene Bereich. Ein kleiner Bereich wird hochskaliert (SnapRec zeigt das beim Aufziehen an). Am schärfsten wird es mit **Vollbild** oder einem Bereich ab 1920 × 1080 Pixeln.
+
 ## 🚀 Loslegen
 
 ### Windows – Installationsprogramm (empfohlen)
@@ -147,6 +150,7 @@ Beim ersten Start werden die Pakete automatisch installiert. Oder manuell:
 | Meine Aufnahmen öffnen | <kbd>Strg</kbd> + <kbd>O</kbd> (im Fenster) | ✅ global |
 | Einführung anzeigen | <kbd>F1</kbd> | |
 | Ganzer Monitor (im grauen Bildschirm) | Doppelklick oder <kbd>Enter</kbd> | |
+| Frei aufziehen (ohne 16:9-Einrasten) | <kbd>Shift</kbd> beim Ziehen gedrückt halten | |
 | Auswahl / Countdown abbrechen | <kbd>Esc</kbd> oder Rechtsklick | |
 
 **Eigene Tastenkürzel festlegen:** ⚙️ *Einstellungen → Tastenkürzel* → auf ein Kürzel klicken → Wunsch-Kombination drücken.
