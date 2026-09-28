@@ -64,7 +64,10 @@ jobs:
             Write-Error "Tag ${{ github.ref_name }} passt nicht zu VERSION $v"; exit 1
           }
           gh release view "v$v" --repo "${{ github.repository }}" *> $null
-          "exists=$(if ($LASTEXITCODE -eq 0) { 'true' } else { 'false' })" >> $env:GITHUB_OUTPUT
+          $exists = if ($LASTEXITCODE -eq 0) { 'true' } else { 'false' }
+          "exists=$exists" >> $env:GITHUB_OUTPUT
+          Write-Host "Version $v – Release vorhanden: $exists"
+          exit 0
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Release veröffentlichen
