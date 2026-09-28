@@ -78,8 +78,8 @@ def test_hotkey_labels_and_backends():
 
 def test_hotkey_from_tk_event():
     assert hotkeys.key_from_tk_event("Control_L", 17) is None
-    assert hotkeys.key_from_tk_event("F9", 75) == "f9"
-    assert hotkeys.key_from_tk_event("Next", 117) == "page_down"
+    assert hotkeys.key_from_tk_event("F9", 0) == "f9"
+    assert hotkeys.key_from_tk_event("Next", 0) == "page_down"
     assert hotkeys.modifiers_from_tk_state(0x5) == {"ctrl", "shift"}
 
 
