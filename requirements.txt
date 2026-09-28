@@ -1,3 +1,5 @@
 mss>=9.0
-Pillow>=10.0
+Pillow>=10.1
 imageio-ffmpeg>=0.5
+customtkinter>=5.2
+pynput>=1.7; sys_platform != "win32"

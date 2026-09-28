@@ -5,4 +5,4 @@ if not exist .venv (
   py -3 -m venv .venv || python -m venv .venv
   .venv\Scripts\python -m pip install -q -r requirements.txt
 )
-start "" .venv\Scripts\pythonw snaprec.py %*
+start "" .venv\Scripts\pythonw -m snaprec %*
