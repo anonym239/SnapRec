@@ -1,8 +1,11 @@
 ## ⬇️ Download
 
-**[SnapRec.exe herunterladen](https://github.com/anonym239/SnapRec/releases/latest/download/SnapRec.exe)** – einfach starten, keine Installation, kein Python nötig (Windows 10/11).
+- **[SnapRec-Setup.exe](https://github.com/anonym239/SnapRec/releases/latest/download/SnapRec-Setup.exe)** – Installationsprogramm (empfohlen): Startmenü, Desktop-Symbol, Deinstallation über *Einstellungen → Apps*. Keine Admin-Rechte nötig.
+- **[SnapRec-portable.zip](https://github.com/anonym239/SnapRec/releases/latest/download/SnapRec-portable.zip)** – ohne Installation: entpacken und `SnapRec.exe` starten.
 
-> Windows zeigt beim ersten Start evtl. „Der Computer wurde durch Windows geschützt“ / „Herausgeber: Unbekannt“ – das ist bei kostenlosen Programmen ohne gekauftes Zertifikat normal. **Weitere Informationen → Trotzdem ausführen**. SnapRec ist Open Source von **Alex Studios**.
+Windows 10/11, kein Python nötig.
+
+> Windows zeigt evtl. „Herausgeber: Unbekannt“ – das ist bei kostenlosen Programmen ohne gekauftes Zertifikat normal. **Weitere Informationen → Trotzdem ausführen**. SnapRec ist Open Source von **Alex Studios**; jeder Build wird automatisch mit Windows Defender geprüft.
 
 ## ✨ Funktionen
 

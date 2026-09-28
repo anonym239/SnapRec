@@ -7,7 +7,7 @@
 **Bildschirmbereich aufnehmen – so einfach wie mit dem Snipping Tool.**<br>
 Bildschirm wird grau · Bereich aufziehen · Countdown · fertiges MP4 in 1080p – auf Wunsch mit Ton.
 
-[![Download für Windows](https://img.shields.io/badge/Download-SnapRec.exe-7c5cff?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/anonym239/SnapRec/releases/latest/download/SnapRec.exe)
+[![Download für Windows](https://img.shields.io/badge/Download-SnapRec--Setup.exe-7c5cff?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/anonym239/SnapRec/releases/latest/download/SnapRec-Setup.exe)
 
 [![Release](https://img.shields.io/github/v/release/anonym239/SnapRec?color=7c5cff&label=Version)](https://github.com/anonym239/SnapRec/releases/latest)
 [![Build](https://img.shields.io/github/actions/workflow/status/anonym239/SnapRec/build.yml?label=Build)](https://github.com/anonym239/SnapRec/actions)
@@ -109,12 +109,17 @@ Mehrere Monitore, Mauszeiger optional, 15–60 fps, Speicherort frei wählbar, a
 
 ## 🚀 Loslegen
 
-### Windows – fertiges Programm
-1. **[SnapRec.exe herunterladen](https://github.com/anonym239/SnapRec/releases/latest/download/SnapRec.exe)**
-2. Doppelklick – fertig. Keine Installation, kein Python nötig.
+### Windows – Installationsprogramm (empfohlen)
+1. **[SnapRec-Setup.exe herunterladen](https://github.com/anonym239/SnapRec/releases/latest/download/SnapRec-Setup.exe)**
+2. Starten → *Weiter* → *Installieren*. Keine Admin-Rechte nötig, kein Python nötig.
+3. SnapRec ist danach im Startmenü (auf Wunsch auch auf dem Desktop) und lässt sich über *Einstellungen → Apps* wieder entfernen.
+
+**Ohne Installation:** [SnapRec-portable.zip](https://github.com/anonym239/SnapRec/releases/latest/download/SnapRec-portable.zip) herunterladen, entpacken, `SnapRec.exe` starten.
 
 > [!NOTE]
-> Beim ersten Start meldet Windows evtl. *„Der Computer wurde durch Windows geschützt“* bzw. *„Herausgeber: Unbekannt“*. Das ist bei kostenlosen Programmen ohne gekauftes Code-Signing-Zertifikat normal – SnapRec ist Open Source, jeder kann den Code hier prüfen. **Weitere Informationen → Trotzdem ausführen**. In den Datei-Eigenschaften (Rechtsklick → Eigenschaften → Details) steht als Hersteller **Alex Studios**.
+> **„Herausgeber: Unbekannt“ / „Der Computer wurde durch Windows geschützt“:** Das zeigt Windows bei kostenlosen Programmen ohne gekauftes Code-Signing-Zertifikat. SnapRec ist Open Source – jeder kann den Code hier prüfen. **Weitere Informationen → Trotzdem ausführen.** In der Programmliste und in den Datei-Eigenschaften steht als Herausgeber **Alex Studios**.
+>
+> **Virenwarnung?** Programme, die mit Python/PyInstaller gebaut sind, werden von Virenscannern leider manchmal fälschlich gemeldet. SnapRec wird deshalb als normales Installationsprogramm gebaut und bei jedem Build automatisch mit Windows Defender geprüft. Falls trotzdem eine Warnung kommt: Die Datei kann bei Microsoft als [Fehlalarm gemeldet](https://www.microsoft.com/wdsi/filesubmission) werden.
 
 ### Mit Python (Windows, Linux, macOS)
 ```sh
@@ -185,11 +190,13 @@ pip install -r requirements.txt pytest
 python -m pytest tests                 # Linux ohne Monitor: xvfb-run python -m pytest tests
 python tools/make_assets.py            # Logo, Icon & Einführungs-GIF neu erzeugen
 python tools/version_info.py build/version_info.txt   # Herausgeber/Version für die .exe
-pyinstaller --onefile --windowed --name SnapRec --icon assets/icon.ico --version-file build/version_info.txt \
+pyinstaller --onedir --windowed --name SnapRec --icon assets/icon.ico --version-file build/version_info.txt \
   --collect-all imageio_ffmpeg --collect-all customtkinter --collect-all soundcard run.py
 ```
 
-**Neuen Release veröffentlichen:** einfach `VERSION` in `snaprec/__init__.py` erhöhen und auf `main` pushen. GitHub Actions testet, baut die `SnapRec.exe` und legt den Release `v<VERSION>` automatisch an.
+Das Installationsprogramm entsteht mit [Inno Setup](https://jrsoftware.org/isinfo.php): `iscc /DAppVersion=1.2.0 installer\SnapRec.iss`.
+
+**Neuen Release veröffentlichen:** einfach `VERSION` in `snaprec/__init__.py` erhöhen und auf `main` pushen. GitHub Actions testet, baut Installer und ZIP, installiert testweise, prüft mit Windows Defender und legt den Release `v<VERSION>` automatisch an.
 
 Gebaut mit [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter), [mss](https://github.com/BoboTiG/python-mss), [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg), [SoundCard](https://github.com/bastibe/SoundCard), [Pillow](https://python-pillow.org), [Send2Trash](https://github.com/arsenetar/send2trash) und [pynput](https://github.com/moses-palmer/pynput).
 

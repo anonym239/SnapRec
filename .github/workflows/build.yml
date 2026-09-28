@@ -1,8 +1,8 @@
 name: Testen, bauen & veröffentlichen
-# - Bei jedem Push: Tests (Linux + Windows) und SnapRec.exe bauen
-#   (Actions → Lauf öffnen → Artifacts → SnapRec-Windows)
+# - Bei jedem Push: Tests (Linux + Windows), SnapRec-Setup.exe + portable ZIP bauen,
+#   Test-Installation und Defender-Scan (Actions → Lauf öffnen → Artifacts → SnapRec-Windows)
 # - Neue VERSION in snaprec/__init__.py auf main (oder Tag "v…"): automatisch einen
-#   GitHub-Release "v<VERSION>" mit der .exe anlegen
+#   GitHub-Release "v<VERSION>" mit Installer und ZIP anlegen
 on:
   push:
     branches: [main]
@@ -35,27 +35,66 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt pytest pyinstaller
+      - run: pip install -r requirements.txt pytest
+      - name: PyInstaller mit eigenem Startprogramm (weniger Virus-Fehlalarme)
+        shell: pwsh
+        run: |
+          pip install --no-binary pyinstaller pyinstaller
+          if ($LASTEXITCODE -ne 0) { pip install pyinstaller }
       - name: Tests unter Windows
         run: python -m pytest -q tests
       - name: Versionsinfos (Herausgeber Alex Studios)
         run: python tools/version_info.py build/version_info.txt
-      - name: SnapRec.exe bauen
+      - name: SnapRec bauen (Ordner-Version, entpackt sich nicht selbst)
         run: >-
-          pyinstaller --noconfirm --onefile --windowed --name SnapRec
+          pyinstaller --noconfirm --onedir --windowed --noupx --name SnapRec
           --icon assets/icon.ico --version-file build/version_info.txt
           --collect-all imageio_ffmpeg --collect-all customtkinter --collect-all soundcard
           run.py
       - name: Selbsttest der fertigen .exe
         shell: pwsh
         run: |
-          $p = Start-Process dist\SnapRec.exe -ArgumentList '--selftest','selftest.txt' -Wait -PassThru
+          $p = Start-Process dist\SnapRec\SnapRec.exe -ArgumentList '--selftest','selftest.txt' -Wait -PassThru
           Get-Content selftest.txt
           if ($p.ExitCode -ne 0) { exit 1 }
+      - name: Installationsprogramm bauen (Inno Setup)
+        shell: pwsh
+        run: |
+          $v = python -c "import snaprec; print(snaprec.VERSION)"
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          & $iscc "/DAppVersion=$v" installer\SnapRec.iss
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Compress-Archive -Path dist\SnapRec\* -DestinationPath dist\SnapRec-portable.zip -Force
+      - name: Test-Installation + Selbsttest + Deinstallation
+        shell: pwsh
+        run: |
+          $p = Start-Process dist\SnapRec-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Write-Error "Installation fehlgeschlagen ($($p.ExitCode))"; exit 1 }
+          $dir = "$env:LOCALAPPDATA\Programs\SnapRec"
+          $p = Start-Process "$dir\SnapRec.exe" -ArgumentList '--selftest',"$pwd\installed.txt" -Wait -PassThru
+          Get-Content installed.txt
+          if ($p.ExitCode -ne 0) { exit 1 }
+          $p = Start-Process "$dir\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Write-Error "Deinstallation fehlgeschlagen"; exit 1 }
+      - name: Virenscan mit Windows Defender (nur zur Info)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Update-MpSignature -ErrorAction SilentlyContinue
+          $mp = "$env:ProgramFiles\Windows Defender\MpCmdRun.exe"
+          foreach ($f in @("dist\SnapRec-Setup.exe", "dist\SnapRec\SnapRec.exe")) {
+            $out = & $mp -Scan -ScanType 3 -File (Resolve-Path $f) -DisableRemediation 2>&1 | Out-String
+            Write-Host "== $f (Exitcode $LASTEXITCODE)"; Write-Host $out
+            $res = if ($LASTEXITCODE -eq 0) { "keine Bedrohung gefunden" } else { "Meldung, Exitcode $LASTEXITCODE" }
+            "- Defender-Scan ``$f``: $res" >> $env:GITHUB_STEP_SUMMARY
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: SnapRec-Windows
-          path: dist/SnapRec.exe
+          path: |
+            dist/SnapRec-Setup.exe
+            dist/SnapRec-portable.zip
       - name: Version lesen
         id: version
         shell: pwsh
@@ -82,5 +121,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: SnapRec v${{ steps.version.outputs.version }}
           body_path: .github/release-notes.md
-          files: dist/SnapRec.exe
+          files: |
+            dist/SnapRec-Setup.exe
+            dist/SnapRec-portable.zip
           make_latest: true
