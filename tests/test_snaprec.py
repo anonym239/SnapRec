@@ -106,7 +106,7 @@ def test_intro_scenes_render():
 def test_recorder_writes_playable_mp4(tmp_path):
     path = str(tmp_path / "test.mp4")
     region = utils.normalize_region(0, 0, 200, 150)
-    rec = Recorder(region, 20, path, cursor_pos=lambda: (10, 10))
+    rec = Recorder(region, 20, path, cursor_pos=lambda: (10, 10), resolution="original")
     rec.start()
     time.sleep(1.0)
     rec.set_paused(True)
@@ -146,3 +146,116 @@ def test_windows_global_hotkey_fires():
         time.sleep(0.05)
     manager.stop()
     assert fired == ["toggle"]
+
+
+# ---- 1080p, Ton, Löschen ---------------------------------------------------
+
+class FakeSource:
+    """Tut so, als wäre es ein Mikrofon: liefert in Echtzeit einen 440-Hz-Ton."""
+    channels = 2
+
+    def recorder(self, samplerate, channels, blocksize):
+        import numpy as np
+        src = self
+
+        class Rec:
+            def __enter__(self):
+                self.pos = 0
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def record(self, numframes):
+                time.sleep(numframes / samplerate)
+                t = (np.arange(numframes) + self.pos) / samplerate
+                self.pos += numframes
+                wave = 0.5 * np.sin(2 * np.pi * 440 * t)
+                return np.repeat(wave[:, None], src.channels, axis=1).astype("float32")
+        return Rec()
+
+
+def _streams(path):
+    return subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-hide_banner", "-i", str(path)],
+                          capture_output=True, text=True).stderr
+
+
+def test_output_size_and_filter():
+    from snaprec import recorder
+    region = utils.normalize_region(0, 0, 800, 600)
+    assert recorder.output_size(region, "1080p") == (1920, 1080)
+    assert recorder.output_size(region, "original") == (800, 600)
+    assert "pad=1920:1080" in recorder.video_filter(region, "1080p")
+    assert recorder.video_filter(region, "original") is None
+    assert recorder.video_filter(utils.normalize_region(0, 0, 1920, 1080), "1080p") is None
+
+
+@needs_display
+def test_recording_1080p_with_audio(tmp_path):
+    path = tmp_path / "ton.mp4"
+    rec = Recorder(utils.normalize_region(0, 0, 320, 240), 20, str(path), resolution="1080p",
+                   audio_sources=["mic"], source_factory=lambda kind: FakeSource())
+    rec.start()
+    time.sleep(1.2)
+    rec.stop()
+    rec.join(timeout=30)
+    assert rec.error is None and rec.warnings == []
+    assert rec.audio_names == ["Mikrofon"]
+    info = _streams(path)
+    assert "1920x1080" in info
+    assert "Audio: aac" in info and "48000 Hz" in info and "stereo" in info
+    # keine Zwischendateien übrig
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["ton.mp4"]
+
+
+@needs_display
+def test_missing_audio_device_still_saves_video(tmp_path):
+    from snaprec.audio import AudioError
+
+    def no_device(kind):
+        raise AudioError("Kein Mikrofon gefunden")
+    path = tmp_path / "ohne.mp4"
+    rec = Recorder(utils.normalize_region(0, 0, 200, 150), 20, str(path), resolution="original",
+                   audio_sources=["mic"], source_factory=no_device)
+    rec.start()
+    time.sleep(0.6)
+    rec.stop()
+    rec.join(timeout=30)
+    assert rec.error is None
+    assert rec.warnings and "Kein Mikrofon" in rec.warnings[0]
+    info = _streams(path)
+    assert "200x150" in info and "Audio" not in info
+
+
+def test_audio_mux_mixes_two_tracks(tmp_path):
+    import numpy as np
+    from snaprec import audio
+    ff = imageio_ffmpeg.get_ffmpeg_exe()
+    video = tmp_path / "v.mp4"
+    subprocess.run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=black:s=64x48:d=1",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", str(video)], check=True)
+    tracks = []
+    for i, ch in enumerate((2, 1)):
+        p = tmp_path / f"a{i}.pcm"
+        t = np.arange(audio.SAMPLE_RATE) / audio.SAMPLE_RATE
+        data = (0.3 * np.sin(2 * np.pi * (440 + 220 * i) * t)).astype("<f4")
+        p.write_bytes(np.repeat(data[:, None], ch, axis=1).tobytes())
+        tracks.append((str(p), ch))
+    out = tmp_path / "out.mp4"
+    audio.mux(str(video), tracks, str(out), 1.0)
+    info = _streams(out)
+    assert "Audio: aac" in info and "stereo" in info
+
+
+def test_library_list_and_delete(tmp_path, monkeypatch):
+    from snaprec import library
+    for i, name in enumerate(["a.mp4", "b.MP4", "notiz.txt", ".versteckt.mp4"]):
+        (tmp_path / name).write_bytes(b"x")
+        os.utime(tmp_path / name, (1000 + i, 1000 + i))
+    names = [p.name for p in library.list_recordings(tmp_path)]
+    assert names == ["b.MP4", "a.mp4"]
+    trashed = []
+    import send2trash
+    monkeypatch.setattr(send2trash, "send2trash", lambda p: (trashed.append(p), os.remove(p)))
+    assert library.delete_recording(tmp_path / "a.mp4") is True
+    assert not (tmp_path / "a.mp4").exists() and trashed

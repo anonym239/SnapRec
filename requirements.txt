@@ -2,4 +2,7 @@ mss>=9.0
 Pillow>=10.1
 imageio-ffmpeg>=0.5
 customtkinter>=5.2
+numpy>=1.24
+soundcard>=0.4.3
+send2trash>=1.8
 pynput>=1.7; sys_platform != "win32"

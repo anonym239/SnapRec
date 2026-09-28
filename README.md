@@ -5,7 +5,7 @@
 # SnapRec
 
 **Bildschirmbereich aufnehmen – so einfach wie mit dem Snipping Tool.**<br>
-Bildschirm wird grau · Bereich aufziehen · Countdown · fertiges MP4.
+Bildschirm wird grau · Bereich aufziehen · Countdown · fertiges MP4 in 1080p – auf Wunsch mit Ton.
 
 [![Download für Windows](https://img.shields.io/badge/Download-SnapRec.exe-7c5cff?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/anonym239/SnapRec/releases/latest/download/SnapRec.exe)
 
@@ -40,22 +40,42 @@ Aus, **3**, 5 oder 10 Sekunden – mit animiertem Ring direkt über deinem Berei
 </td>
 <td width="33%" valign="top">
 
-### 🎬 Sofort ein MP4
-H.264-Video, das überall läuft: WhatsApp, Discord, PowerPoint, Browser. Mit Pause & Stopp.
+### 🎬 Immer 1080p
+Jedes Video wird als **1920 × 1080** (H.264-MP4) gespeichert – der Bereich wird passend skaliert. Läuft überall: WhatsApp, Discord, YouTube, PowerPoint.
 
 </td>
 </tr>
 <tr>
 <td valign="top">
 
-### ⌨️ Eigene Tastenkürzel
-Leg deine Wunsch-Kombinationen fest – z. B. **Strg + Alt + R** zum Starten/Stoppen. Funktioniert auch im Hintergrund.
+### 🔊 Ton in Top-Qualität
+Auf Knopfdruck **PC-Sound** (was du hörst) und/oder **Mikrofon** – 48 kHz Stereo, AAC 320 kbit/s, synchron zum Bild, auch bei Pausen.
 
 </td>
 <td valign="top">
 
+### 🗂️ Meine Aufnahmen
+Alle Videos mit Vorschaubild, Dauer und Größe. Abspielen oder **löschen** (einzeln oder mehrere) – sicher in den Papierkorb.
+
+</td>
+<td valign="top">
+
+### ⌨️ Eigene Tastenkürzel
+Leg deine Wunsch-Kombinationen fest – z. B. **Strg + Alt + R** zum Starten/Stoppen. Funktioniert auch im Hintergrund.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
 ### 👻 Unsichtbare Steuerung
 Rahmen und Leiste landen nicht im Video – auch nicht bei Vollbild (Windows 10 2004+ / 11).
+
+</td>
+<td valign="top">
+
+### ⏸️ Pause & Stopp
+Schwebende Leiste mit Timer, frei verschiebbar – oder per Tastenkürzel.
 
 </td>
 <td valign="top">
@@ -80,7 +100,10 @@ Mehrere Monitore, Mauszeiger optional, 15–60 fps, Speicherort frei wählbar, a
 </tr>
 <tr>
 <td align="center"><img src="docs/aufnahme.png" width="420"><br><sub>③ Aufnahme mit Pause & Stopp</sub></td>
-<td align="center"><img src="docs/gespeichert.png" width="330"><br><sub>④ Gespeichert – abspielen oder Ordner öffnen</sub></td>
+<td align="center"><img src="docs/gespeichert.png" width="330"><br><sub>④ Gespeichert – 1080p mit Ton</sub></td>
+</tr>
+<tr>
+<td align="center" colspan="2"><img src="docs/aufnahmen.png" width="420"><br><sub>Meine Aufnahmen – abspielen & löschen</sub></td>
 </tr>
 </table>
 
@@ -91,7 +114,7 @@ Mehrere Monitore, Mauszeiger optional, 15–60 fps, Speicherort frei wählbar, a
 2. Doppelklick – fertig. Keine Installation, kein Python nötig.
 
 > [!NOTE]
-> Beim ersten Start meldet Windows evtl. *„Der Computer wurde durch Windows geschützt“*. Das ist bei neuen Programmen ohne gekaufte Code-Signatur normal: **Weitere Informationen → Trotzdem ausführen**.
+> Beim ersten Start meldet Windows evtl. *„Der Computer wurde durch Windows geschützt“* bzw. *„Herausgeber: Unbekannt“*. Das ist bei kostenlosen Programmen ohne gekauftes Code-Signing-Zertifikat normal – SnapRec ist Open Source, jeder kann den Code hier prüfen. **Weitere Informationen → Trotzdem ausführen**. In den Datei-Eigenschaften (Rechtsklick → Eigenschaften → Details) steht als Hersteller **Alex Studios**.
 
 ### Mit Python (Windows, Linux, macOS)
 ```sh
@@ -116,6 +139,7 @@ Beim ersten Start werden die Pakete automatisch installiert. Oder manuell:
 | Pause / Weiter | <kbd>Strg</kbd> + <kbd>Alt</kbd> + <kbd>P</kbd> | ✅ |
 | Ganzen Bildschirm aufnehmen | <kbd>Strg</kbd> + <kbd>Alt</kbd> + <kbd>F</kbd> | ✅ |
 | Neue Aufnahme (im Fenster) | <kbd>Strg</kbd> + <kbd>N</kbd> | |
+| Meine Aufnahmen öffnen | <kbd>Strg</kbd> + <kbd>O</kbd> (im Fenster) | ✅ global |
 | Einführung anzeigen | <kbd>F1</kbd> | |
 | Ganzer Monitor (im grauen Bildschirm) | Doppelklick oder <kbd>Enter</kbd> | |
 | Auswahl / Countdown abbrechen | <kbd>Esc</kbd> oder Rechtsklick | |
@@ -146,7 +170,9 @@ SnapRec.exe [-c SEKUNDEN] [--fps FPS] [-o ORDNER] [--no-cursor] [-s | -f]
 snaprec/
 ├── app.py        Hauptfenster & Ablauf
 ├── overlay.py    grauer Bildschirm + animierter Countdown
-├── recorder.py   Aufnahme-Thread (mss → ffmpeg/H.264)
+├── recorder.py   Aufnahme-Thread (mss → ffmpeg/H.264, 1080p)
+├── audio.py      Ton: PC-Sound (Loopback) & Mikrofon, Mischen zu AAC
+├── library.py    „Meine Aufnahmen“: Liste, Vorschau, Löschen
 ├── widgets.py    Rahmen & Steuerleiste während der Aufnahme
 ├── settings.py   Einstellungen & Tastenkürzel-Editor
 ├── hotkeys.py    globale Kürzel (Windows: RegisterHotKey, sonst pynput)
@@ -158,14 +184,15 @@ snaprec/
 pip install -r requirements.txt pytest
 python -m pytest tests                 # Linux ohne Monitor: xvfb-run python -m pytest tests
 python tools/make_assets.py            # Logo, Icon & Einführungs-GIF neu erzeugen
-pyinstaller --onefile --windowed --name SnapRec --icon assets/icon.ico \
-  --collect-all imageio_ffmpeg --collect-all customtkinter run.py
+python tools/version_info.py build/version_info.txt   # Herausgeber/Version für die .exe
+pyinstaller --onefile --windowed --name SnapRec --icon assets/icon.ico --version-file build/version_info.txt \
+  --collect-all imageio_ffmpeg --collect-all customtkinter --collect-all soundcard run.py
 ```
 
 **Neuen Release veröffentlichen:** einfach `VERSION` in `snaprec/__init__.py` erhöhen und auf `main` pushen. GitHub Actions testet, baut die `SnapRec.exe` und legt den Release `v<VERSION>` automatisch an.
 
-Gebaut mit [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter), [mss](https://github.com/BoboTiG/python-mss), [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg), [Pillow](https://python-pillow.org) und [pynput](https://github.com/moses-palmer/pynput).
+Gebaut mit [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter), [mss](https://github.com/BoboTiG/python-mss), [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg), [SoundCard](https://github.com/bastibe/SoundCard), [Pillow](https://python-pillow.org), [Send2Trash](https://github.com/arsenetar/send2trash) und [pynput](https://github.com/moses-palmer/pynput).
 
 ## 📄 Lizenz
 
-MIT – frei nutzbar, auch kommerziell. Siehe [LICENSE](LICENSE). Ideen, Issues und Pull Requests sind willkommen! 💜
+MIT – frei nutzbar, auch kommerziell. Siehe [LICENSE](LICENSE). Ein Projekt von **Alex Studios**. Ideen, Issues und Pull Requests sind willkommen! 💜

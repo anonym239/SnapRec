@@ -38,11 +38,13 @@ jobs:
       - run: pip install -r requirements.txt pytest pyinstaller
       - name: Tests unter Windows
         run: python -m pytest -q tests
+      - name: Versionsinfos (Herausgeber Alex Studios)
+        run: python tools/version_info.py build/version_info.txt
       - name: SnapRec.exe bauen
         run: >-
           pyinstaller --noconfirm --onefile --windowed --name SnapRec
-          --icon assets/icon.ico
-          --collect-all imageio_ffmpeg --collect-all customtkinter
+          --icon assets/icon.ico --version-file build/version_info.txt
+          --collect-all imageio_ffmpeg --collect-all customtkinter --collect-all soundcard
           run.py
       - name: Selbsttest der fertigen .exe
         shell: pwsh

@@ -49,6 +49,7 @@ class App:
         self.last_file = None
         self.settings_window = None
         self.intro_window = None
+        self.library_window = None
         self._cursor = None
         self._region = None
         self._ico_path = None
@@ -63,6 +64,7 @@ class App:
         self._build_ui()
         root.bind("<Control-n>", lambda e: self.new_recording())
         root.bind("<F1>", lambda e: self.show_intro())
+        root.bind("<Control-o>", lambda e: self.show_library())
         root.protocol("WM_DELETE_WINDOW", self.quit)
 
         self.apply_hotkeys()
@@ -116,6 +118,8 @@ class App:
                       **icon_btn).pack(side="right")
         ctk.CTkButton(head, image=theme.ctk_icon("help", 18, theme.MUTED), command=self.show_intro,
                       **icon_btn).pack(side="right", padx=8)
+        ctk.CTkButton(head, image=theme.ctk_icon("film", 18, theme.MUTED), command=self.show_library,
+                      **icon_btn).pack(side="right")
 
         # Großer Aufnahme-Knopf + Vollbild
         actions = ctk.CTkFrame(wrap, fg_color="transparent")
@@ -138,21 +142,34 @@ class App:
                                       width=58, height=18)
         self.hint_full.pack(side="right", padx=(10, 0))
 
-        # Countdown
-        cd = ctk.CTkFrame(wrap, fg_color=theme.SURFACE, corner_radius=16, border_width=1,
-                          border_color=theme.BORDER)
-        cd.pack(fill="x", pady=(16, 0))
-        ctk.CTkLabel(cd, text="Countdown", font=font(13, "bold"), text_color=theme.TEXT).pack(
-            side="left", padx=(18, 12), pady=14)
+        # Optionen: Countdown + Ton
+        opts = ctk.CTkFrame(wrap, fg_color=theme.SURFACE, corner_radius=16, border_width=1,
+                            border_color=theme.BORDER)
+        opts.pack(fill="x", pady=(16, 0))
+        row1 = ctk.CTkFrame(opts, fg_color="transparent")
+        row1.pack(fill="x", padx=(18, 14), pady=(12, 4))
+        ctk.CTkLabel(row1, text="Countdown", font=font(13, "bold"), text_color=theme.TEXT,
+                     width=86, anchor="w").pack(side="left")
         values = COUNTDOWN_VALUES if self.cfg["countdown"] in COUNTDOWN_VALUES else sorted(
             COUNTDOWN_VALUES + [self.cfg["countdown"]])
         self.countdown = ctk.CTkSegmentedButton(
-            cd, values=[countdown_label(v) for v in values], font=font(13), height=34,
+            row1, values=[countdown_label(v) for v in values], font=font(13), height=34,
             selected_color=theme.ACCENT, selected_hover_color=theme.ACCENT_HOVER,
             unselected_color=theme.SURFACE_2, unselected_hover_color=theme.SURFACE_3,
             fg_color=theme.SURFACE_2, command=self._countdown_changed)
         self.countdown.set(countdown_label(self.cfg["countdown"]))
-        self.countdown.pack(side="right", padx=14, pady=12, fill="x", expand=True)
+        self.countdown.pack(side="right", fill="x", expand=True)
+        row2 = ctk.CTkFrame(opts, fg_color="transparent")
+        row2.pack(fill="x", padx=(18, 14), pady=(4, 12))
+        ctk.CTkLabel(row2, text="Ton", font=font(13, "bold"), text_color=theme.TEXT,
+                     width=86, anchor="w").pack(side="left")
+        self.audio_btns = {}
+        for key, label, icon in (("audio_mic", "Mikrofon", "mic"), ("audio_system", "PC-Sound", "speaker")):
+            btn = ctk.CTkButton(row2, text=f" {label}", height=34, corner_radius=8, font=font(13),
+                                command=lambda k=key: self._toggle_audio(k))
+            btn.pack(side="right", fill="x", expand=True, padx=(6, 0))
+            self.audio_btns[key] = (btn, icon)
+        self._style_audio_buttons()
 
         # Ergebnis-Karte (erscheint nach der Aufnahme)
         self.result = ctk.CTkFrame(wrap, fg_color=theme.SURFACE, corner_radius=16, border_width=1,
@@ -169,6 +186,8 @@ class App:
         self.result_info = ctk.CTkLabel(texts, text="", font=font(12), text_color=theme.MUTED,
                                         anchor="w", height=18)
         self.result_info.pack(fill="x")
+        self.result_warn = ctk.CTkLabel(texts, text="", font=font(11), text_color=theme.PAUSE,
+                                        anchor="w", justify="left", wraplength=300)
         btns = ctk.CTkFrame(self.result, fg_color="transparent")
         btns.pack(fill="x", padx=16, pady=(0, 14))
         small = dict(height=34, corner_radius=10, font=font(12), fg_color=theme.SURFACE_2,
@@ -178,6 +197,9 @@ class App:
         ctk.CTkButton(btns, text=" Ordner öffnen", image=theme.ctk_icon("folder", 14),
                       command=lambda: self._open(self.cfg["output_dir"]), **small).pack(
             side="left", fill="x", expand=True, padx=(8, 0))
+        ctk.CTkButton(btns, text="", image=theme.ctk_icon("trash", 15, theme.REC), width=40, height=34,
+                      corner_radius=10, fg_color=theme.SURFACE_2, hover_color="#3a1f27",
+                      command=self.delete_last).pack(side="left", padx=(8, 0))
 
         # Speichern-Fortschritt
         self.saving = ctk.CTkFrame(wrap, fg_color="transparent")
@@ -201,7 +223,57 @@ class App:
         root.minsize(440, 0)
 
     def refresh_footer(self):
-        self.footer.configure(text=f"  {short_path(self.cfg['output_dir'], 44)}")
+        res = "1080p" if self.cfg.get("resolution") == "1080p" else "Originalgröße"
+        self.footer.configure(
+            text=f"  {short_path(self.cfg['output_dir'], 32)}   ·   {res}  ·  {self.cfg['fps']} fps")
+
+    def _style_audio_buttons(self):
+        for key, (btn, icon) in self.audio_btns.items():
+            on = bool(self.cfg.get(key))
+            btn.configure(
+                fg_color=theme.ACCENT if on else theme.SURFACE_2,
+                hover_color=theme.ACCENT_HOVER if on else theme.SURFACE_3,
+                text_color="#ffffff" if on else theme.MUTED,
+                image=theme.ctk_icon(icon, 15, "#ffffff" if on else theme.MUTED))
+
+    def _toggle_audio(self, key):
+        self.cfg[key] = not self.cfg.get(key)
+        self.save()
+        self._style_audio_buttons()
+
+    def audio_sources(self):
+        return [k for k, key in (("system", "audio_system"), ("mic", "audio_mic")) if self.cfg.get(key)]
+
+    def show_library(self):
+        if self.library_window and self.library_window.winfo_exists():
+            self.library_window.lift()
+            self.library_window.refresh()
+            return
+        from snaprec.library import LibraryWindow
+        self.library_window = LibraryWindow(self)
+
+    def delete_last(self):
+        if not self.last_file:
+            return
+        from snaprec.library import confirm, delete_recording
+        path = Path(self.last_file)
+        if not confirm(self.root, "Aufnahme löschen?", f"„{path.name}“ wird in den Papierkorb verschoben."):
+            return
+        try:
+            delete_recording(path)
+        except OSError as exc:
+            messagebox.showerror(APP_NAME, f"Konnte nicht löschen (evtl. noch geöffnet?):\n{exc}",
+                                 parent=self.root)
+            return
+        self.on_recording_deleted(path)
+        if self.library_window and self.library_window.winfo_exists():
+            self.library_window.refresh()
+        self.show_message("Aufnahme in den Papierkorb verschoben")
+
+    def on_recording_deleted(self, path):
+        if self.last_file and Path(self.last_file) == Path(path):
+            self.last_file = None
+            self.result.pack_forget()
 
     def refresh_hints(self):
         combo = self.cfg["hotkeys"].get("toggle")
@@ -280,12 +352,14 @@ class App:
         elif action == "fullscreen":
             if not self.recorder and not self.overlay:
                 self.new_recording(full=True)
+        elif action == "library":
+            self.show_library()
 
     # ---- Ablauf -------------------------------------------------------------
     def new_recording(self, full=False):
         if self.recorder or self.overlay:
             return
-        for win in (self.settings_window, self.intro_window):
+        for win in (self.settings_window, self.intro_window, self.library_window):
             if win and win.winfo_exists():
                 win.withdraw()
         self.root.withdraw()
@@ -322,7 +396,9 @@ class App:
         self.bar = ControlBar(self.root, self._region, self.toggle_pause, self.stop_recording,
                               stop_hint=hotkeys.label(stop_combo) if stop_combo else "")
         cursor = self._get_cursor if self.cfg["cursor"] else None
-        self.recorder = Recorder(self._region, self.cfg["fps"], path, cursor)
+        self.recorder = Recorder(self._region, self.cfg["fps"], path, cursor,
+                                 resolution=self.cfg.get("resolution", "1080p"),
+                                 audio_sources=self.audio_sources())
         self.recorder.start()
         self._track_cursor()
         self._update_bar()
@@ -342,7 +418,7 @@ class App:
 
     def _update_bar(self):
         rec = self.recorder
-        if not rec:
+        if not rec or not self.bar:   # schon gestoppt, Video wird gespeichert
             return
         if rec.error or not rec.is_alive():
             self.stop_recording()
@@ -386,10 +462,18 @@ class App:
             size = format_size(os.path.getsize(rec.path))
         except OSError:
             size = ""
-        r = rec.region
+        w, h = rec.size
+        sound = "mit Ton" if rec.audio_names else "ohne Ton"
         self.result_info.configure(
-            text=f"{Path(rec.path).name}\n{format_time(rec.elapsed)}  ·  {r['width']}×{r['height']}  ·  {size}",
+            text=f"{Path(rec.path).name}\n{format_time(rec.elapsed)}  ·  {w}×{h}  ·  {sound}  ·  {size}",
             height=36, justify="left")
+        if self.library_window and self.library_window.winfo_exists():
+            self.library_window.refresh()
+        if rec.warnings:
+            self.result_warn.configure(text="⚠ " + "\n⚠ ".join(rec.warnings))
+            self.result_warn.pack(fill="x", pady=(4, 0))
+        else:
+            self.result_warn.pack_forget()
         self.result.pack(fill="x", pady=(16, 0), before=self.footer)
         # kleine Animation: Karte leuchtet kurz grün auf
         theme.animate(self.result, 900, lambda t: self.result.configure(
@@ -406,7 +490,7 @@ class App:
     def _back_to_main(self):
         self.root.deiconify()
         self.root.lift()
-        for win in (self.settings_window, self.intro_window):
+        for win in (self.settings_window, self.intro_window, self.library_window):
             if win and win.winfo_exists():
                 win.deiconify()
 
@@ -436,7 +520,19 @@ def selftest(report_path):
             writer.send(bytes([i * 20 % 256]) * (64 * 48 * 3))
         writer.close()
         lines.append(f"video: ok ({os.path.getsize(path)} Bytes)")
-        os.remove(path)
+        # Ton: Pakete laden und eine Test-Tonspur einmischen
+        import numpy as np
+        import send2trash  # noqa: F401
+        from snaprec import audio
+        audio._soundcard()
+        pcm = path + ".pcm"
+        with open(pcm, "wb") as f:
+            f.write((0.2 * np.sin(np.arange(48000) / 48000 * 2 * np.pi * 440)).astype("<f4").tobytes())
+        muxed = path.replace(".mp4", "_ton.mp4")
+        audio.mux(path, [(pcm, 1)], muxed, 1.0)
+        lines.append(f"ton: ok ({os.path.getsize(muxed)} Bytes)")
+        for p in (path, pcm, muxed):
+            os.remove(p)
     except Exception:
         ok = False
         lines.append(traceback.format_exc())

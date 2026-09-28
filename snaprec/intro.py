@@ -25,7 +25,7 @@ SCENES = [
     ("2  ·  Countdown",
      "Nach 3, 5 oder 10 Sekunden geht’s los – genug Zeit,\num alles vorzubereiten. Esc bricht ab.", 4.0),
     ("3  ·  Aufnehmen & speichern",
-     "Pause und Stopp über die kleine Leiste oder dein eigenes\nTastenkürzel. Das Video landet als MP4 im Videos-Ordner.", 4.8),
+     "Pause und Stopp über die kleine Leiste oder dein eigenes\nTastenkürzel. Gespeichert wird in 1080p – auf Wunsch mit Ton.", 4.8),
 ]
 TRANSITION = 0.38
 
@@ -184,7 +184,7 @@ def _scene_welcome(p, t):
     size = max(1, int(118 * k * scale))
     logo = theme.logo_image(size)
     p.img.alpha_composite(logo, (int(W * k / 2 - size / 2), int(120 * k - size / 2)))
-    chips = [("Bereich wählen", "select"), ("Countdown", "record"), ("MP4-Video", "play")]
+    chips = [("Bereich wählen", "select"), ("Countdown", "record"), ("1080p", "film"), ("Ton", "speaker")]
     imgs = [theme.pill(txt, int(32 * k), icon=ic) for txt, ic in chips]
     gap = 10 * k
     total = sum(i.width for i in imgs) + gap * (len(imgs) - 1)
@@ -273,7 +273,7 @@ def _saved_card(k, scale):
     p.ellipse((14, 16, 46, 48), fill=theme.OK)
     p.paste(theme.icon_image("check", int(24 * k), "#ffffff"), (18, 20))
     p.text((58, 25), "Aufnahme gespeichert", 12, "bold", anchor="lm")
-    p.text((58, 43), "Aufnahme_2026-09-28.mp4  ·  00:03", 9, fill=theme.MUTED, anchor="lm")
+    p.text((58, 43), "1920×1080  ·  mit Ton  ·  00:03", 9, fill=theme.MUTED, anchor="lm")
     if scale < 1:
         img = img.resize((max(1, int(img.width * scale)), max(1, int(img.height * scale))))
     return img

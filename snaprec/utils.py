@@ -19,6 +19,7 @@ DEFAULT_HOTKEYS = {
     "toggle": "ctrl+alt+r",       # Aufnahme starten / stoppen
     "pause": "ctrl+alt+p",        # Pause / Weiter
     "fullscreen": "ctrl+alt+f",   # ganzen Bildschirm aufnehmen
+    "library": "",                # Meine Aufnahmen öffnen (standardmäßig aus)
 }
 
 
@@ -34,6 +35,9 @@ def default_config():
         "countdown": 3,
         "fps": 30,
         "cursor": True,
+        "resolution": "1080p",
+        "audio_system": False,
+        "audio_mic": False,
         "output_dir": default_output_dir(),
         "hotkeys": dict(DEFAULT_HOTKEYS),
         "intro_seen": False,

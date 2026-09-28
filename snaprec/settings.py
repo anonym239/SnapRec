@@ -6,13 +6,14 @@ from tkinter import filedialog
 
 import customtkinter as ctk
 
-from snaprec import APP_NAME, REPO_URL, VERSION, hotkeys, theme
+from snaprec import APP_NAME, PUBLISHER, REPO_URL, VERSION, hotkeys, theme
 from snaprec.utils import DEFAULT_HOTKEYS, set_alpha, short_path
 
 ACTIONS = [
     ("toggle", "Aufnahme starten / stoppen"),
     ("pause", "Pause / Weiter"),
     ("fullscreen", "Ganzen Bildschirm aufnehmen"),
+    ("library", "Meine Aufnahmen öffnen"),
 ]
 ACTION_NAMES = dict(ACTIONS)
 FPS_VALUES = ["15", "24", "30", "60"]
@@ -127,6 +128,16 @@ class SettingsWindow(ctk.CTkToplevel):
         # --- Aufnahme ---
         c = card(body, "Aufnahme", icon="record")
         c.pack(fill="x", pady=(0, 12))
+        r = row(c, "Auflösung")
+        self.resolution = ctk.CTkSegmentedButton(
+            r, values=["1080p", "Original"], font=font(12), height=32,
+            selected_color=theme.ACCENT, selected_hover_color=theme.ACCENT_HOVER,
+            unselected_color=theme.SURFACE_2, unselected_hover_color=theme.SURFACE_3,
+            fg_color=theme.SURFACE_2, command=self._resolution_changed)
+        self.resolution.set("1080p" if self.cfg.get("resolution", "1080p") == "1080p" else "Original")
+        self.resolution.pack(side="right")
+        ctk.CTkLabel(c, text="1080p = jedes Video wird als 1920 × 1080 gespeichert (passend skaliert).",
+                     font=font(11), text_color=theme.MUTED, anchor="w").pack(fill="x", padx=18)
         r = row(c, "Bildrate")
         self.fps = ctk.CTkSegmentedButton(
             r, values=[f"{v} fps" for v in FPS_VALUES], font=font(12), height=32,
@@ -163,7 +174,8 @@ class SettingsWindow(ctk.CTkToplevel):
                       text_color=theme.ACCENT, command=self._reset_hotkeys).pack(side="left")
 
         # --- Über ---
-        c = card(body, f"{APP_NAME} {VERSION}", "Kostenlos & Open Source (MIT-Lizenz).", icon="help")
+        c = card(body, f"{APP_NAME} {VERSION}", f"von {PUBLISHER}  ·  kostenlos & Open Source (MIT-Lizenz).",
+                 icon="help")
         c.pack(fill="x")
         r = ctk.CTkFrame(c, fg_color="transparent")
         r.pack(fill="x", padx=18, pady=(0, 14))
@@ -197,6 +209,12 @@ class SettingsWindow(ctk.CTkToplevel):
     def _fps_changed(self, value):
         self.cfg["fps"] = int(value.split()[0])
         self.app.save()
+        self.app.refresh_footer()
+
+    def _resolution_changed(self, value):
+        self.cfg["resolution"] = "1080p" if value == "1080p" else "original"
+        self.app.save()
+        self.app.refresh_footer()
 
     def _cursor_changed(self):
         self.cfg["cursor"] = bool(self.cursor.get())

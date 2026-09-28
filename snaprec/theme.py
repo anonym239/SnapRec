@@ -236,6 +236,26 @@ def icon_image(name, size=64, color=TEXT):
                 x = s * (0.22 + i * 0.14)
                 d.rectangle((x - s * 0.03, s * y - s * 0.03, x + s * 0.03, s * y + s * 0.03), fill=fill)
         d.rectangle((s * 0.3, s * 0.6, s * 0.7, s * 0.65), fill=fill)
+    elif name == "trash":
+        d.rounded_rectangle((s * 0.22, s * 0.2, s * 0.78, s * 0.28), radius=s * 0.03, fill=fill)
+        d.rounded_rectangle((s * 0.4, s * 0.12, s * 0.6, s * 0.22), radius=s * 0.03, fill=fill)
+        d.polygon([(s * 0.27, s * 0.33), (s * 0.73, s * 0.33), (s * 0.68, s * 0.88), (s * 0.32, s * 0.88)],
+                  fill=fill)
+        for x in (0.42, 0.58):
+            d.line([(s * x, s * 0.43), (s * x, s * 0.78)], fill=(0, 0, 0, 0), width=max(1, w // 2))
+    elif name == "film":
+        d.rounded_rectangle((s * 0.1, s * 0.22, s * 0.68, s * 0.78), radius=s * 0.1, fill=fill)
+        d.polygon([(s * 0.72, s * 0.5), (s * 0.92, s * 0.3), (s * 0.92, s * 0.7)], fill=fill)
+    elif name == "speaker":
+        d.polygon([(s * 0.12, s * 0.38), (s * 0.3, s * 0.38), (s * 0.52, s * 0.18), (s * 0.52, s * 0.82),
+                   (s * 0.3, s * 0.62), (s * 0.12, s * 0.62)], fill=fill)
+        d.arc((s * 0.42, s * 0.3, s * 0.72, s * 0.7), -50, 50, fill=fill, width=w)
+        d.arc((s * 0.42, s * 0.14, s * 0.9, s * 0.86), -50, 50, fill=fill, width=w)
+    elif name == "mic":
+        d.rounded_rectangle((s * 0.36, s * 0.1, s * 0.64, s * 0.6), radius=s * 0.14, fill=fill)
+        d.arc((s * 0.24, s * 0.3, s * 0.76, s * 0.72), 0, 180, fill=fill, width=w)
+        d.line([(s * 0.5, s * 0.72), (s * 0.5, s * 0.86)], fill=fill, width=w)
+        d.line([(s * 0.34, s * 0.88), (s * 0.66, s * 0.88)], fill=fill, width=w)
     elif name == "close":
         d.line([(s * 0.3, s * 0.3), (s * 0.7, s * 0.7)], fill=fill, width=w)
         d.line([(s * 0.7, s * 0.3), (s * 0.3, s * 0.7)], fill=fill, width=w)
