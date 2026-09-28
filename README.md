@@ -162,7 +162,7 @@ pyinstaller --onefile --windowed --name SnapRec --icon assets/icon.ico \
   --collect-all imageio_ffmpeg --collect-all customtkinter run.py
 ```
 
-**Neuen Release veröffentlichen:** `VERSION` in `snaprec/__init__.py` erhöhen, dann einen Tag pushen (`git tag v1.2.0 && git push origin v1.2.0`). GitHub Actions testet, baut die `SnapRec.exe` und legt den Release automatisch an.
+**Neuen Release veröffentlichen:** einfach `VERSION` in `snaprec/__init__.py` erhöhen und auf `main` pushen. GitHub Actions testet, baut die `SnapRec.exe` und legt den Release `v<VERSION>` automatisch an.
 
 Gebaut mit [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter), [mss](https://github.com/BoboTiG/python-mss), [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg), [Pillow](https://python-pillow.org) und [pynput](https://github.com/moses-palmer/pynput).
 
