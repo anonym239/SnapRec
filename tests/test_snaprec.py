@@ -123,7 +123,10 @@ def test_recorder_writes_playable_mp4(tmp_path):
                           capture_output=True, text=True).stderr
     assert "h264" in info and "200x150" in info
     frames, _ = imageio_ffmpeg.count_frames_and_secs(path)
-    assert 25 <= frames <= 40   # ~1,5 s bei 20 fps
+    assert frames == rec.frames          # beim Verarbeiten geht kein Bild verloren
+    # 1,5 s aktiv bei 20 fps (Pause zählt nicht); etwas Spielraum für den
+    # Start des Kodierers auf langsamen Rechnern
+    assert 15 <= rec.frames <= 34
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="nur Windows")
