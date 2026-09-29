@@ -7,13 +7,10 @@ import time
 import imageio_ffmpeg
 from PIL import Image, ImageDraw
 
-from snaprec import audio
+from snaprec import audio, processing
 from snaprec.utils import MSS
 
 CURSOR_SHAPE = [(0, 0), (0, 17), (4, 13), (7, 20), (10, 19), (7, 12), (12, 12)]
-
-# Ausgabe-Auflösungen: "1080p" = 1920×1080 (quer) bzw. 1080×1920 (hochkant)
-RESOLUTIONS = ("1080p", "original")
 
 
 def draw_cursor(img, x, y):
@@ -24,35 +21,20 @@ def draw_cursor(img, x, y):
 
 
 def output_size(region, resolution):
-    """Größe des fertigen Videos. Hochkant-Bereiche werden zu 1080×1920."""
-    if resolution != "1080p":
-        return region["width"], region["height"]
-    return (1920, 1080) if region["width"] >= region["height"] else (1080, 1920)
+    return processing.output_size(region["width"], region["height"], resolution)
 
 
 def upscale_factor(region, resolution):
-    """> 1, wenn der Bereich kleiner ist als das Video und hochskaliert wird."""
-    w, h = output_size(region, resolution)
-    return min(w / max(1, region["width"]), h / max(1, region["height"]))
-
-
-def video_filter(region, resolution):
-    """ffmpeg-Filter: Bereich auf 1080p skalieren (bei abweichendem
-    Seitenverhältnis mit schwarzen Rändern), beim Vergrößern leicht nachschärfen."""
-    w, h = output_size(region, resolution)
-    if (w, h) == (region["width"], region["height"]):
-        return None
-    sharpen = ",unsharp=5:5:0.5:3:3:0.0" if upscale_factor(region, resolution) > 1.1 else ""
-    same_ratio = abs(region["width"] / region["height"] - w / h) / (w / h) < 0.01
-    if same_ratio:
-        return f"scale={w}:{h}:flags=lanczos{sharpen},setsar=1"
-    return (f"scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2"
-            f":flags=lanczos{sharpen},pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1")
+    return processing.upscale_factor(region["width"], region["height"], resolution)
 
 
 class Recorder(threading.Thread):
-    """Nimmt den Bereich mit fester Bildrate auf und schreibt ein MP4 (H.264),
-    auf Wunsch mit Ton (audio_sources: "system" und/oder "mic").
+    """Nimmt den Bereich mit fester Bildrate auf – auf Wunsch mit Ton
+    (audio_sources: "system" und/oder "mic").
+
+    Gespeichert wird zuerst eine fast verlustfreie Rohfassung in Originalgröße
+    (raw_path + Tonspuren). Das fertige MP4 in 1080p/1440p/4K macht danach
+    make_processor() – mit Analyse, smartem Hochskalieren und Fortschritt.
 
     Ist der Rechner mal zu langsam, werden Bilder doppelt geschrieben, damit
     das Video trotzdem genauso lang ist wie die echte Aufnahme.
@@ -77,6 +59,8 @@ class Recorder(threading.Thread):
         self.error = None
         self.warnings = []
         self.audio_names = []     # Quellen, die wirklich im Video gelandet sind
+        self.tracks = []          # [(pfad, kanäle)] der Tonspuren
+        self.raw_path = None
         self.frames = 0
         self.elapsed = 0.0
 
@@ -139,52 +123,52 @@ class Recorder(threading.Thread):
     def _record(self):
         folder, name = os.path.split(self.path)
         base = os.path.join(folder, "." + os.path.splitext(name)[0])
+        self.raw_path = f"{base}_roh.mp4"
         tracks = self._start_audio(base) if self.audio_sources else []
-        video_path = f"{base}_video.mp4" if tracks else self.path
         try:
-            self._record_video(video_path)
+            self._record_video(self.raw_path)
         finally:
             for track in tracks:
                 track.stop()
             for track in tracks:
                 track.join(timeout=3)
-        if not tracks:
-            return
-        try:
-            usable = []
-            for track in tracks:
-                if track.error:
-                    self.warnings.append(f"{track.name}: {track.error}")
-                elif os.path.exists(track.path) and os.path.getsize(track.path) > 0:
-                    usable.append(track)
-            if usable:
-                audio.mux(video_path, [(t.path, t.channels) for t in usable], self.path,
-                          self.frames / self.fps)
-                self.audio_names = [t.name for t in usable]
-                os.remove(video_path)
+        for track in tracks:
+            if track.error:
+                self.warnings.append(f"{track.name}: {track.error}")
+            elif os.path.exists(track.path) and os.path.getsize(track.path) > 0:
+                self.tracks.append((track.path, track.channels))
+                self.audio_names.append(track.name)
             else:
-                os.replace(video_path, self.path)
-        except Exception as exc:
-            self.warnings.append(f"Ton konnte nicht eingefügt werden: {exc}")
-            if os.path.exists(video_path):
-                os.replace(video_path, self.path)
-        finally:
-            for track in tracks:
                 try:
                     os.remove(track.path)
                 except OSError:
                     pass
 
+    @property
+    def duration(self):
+        return self.frames / self.fps if self.fps else 0.0
+
+    def make_processor(self):
+        """Nachbearbeitung (Analyse, Hochskalieren, Ton) für die fertige Datei."""
+        r = self.region
+        return processing.Processor(self.raw_path, self.tracks, self.path,
+                                    (r["width"], r["height"]), self.resolution, self.duration)
+
+    def process(self):
+        """Nachbearbeitung direkt ausführen (ohne Oberfläche). Gibt den Processor zurück."""
+        proc = self.make_processor()
+        proc.run()
+        if proc.error:
+            raise proc.error
+        return proc
+
     def _record_video(self, path):
         r = self.region
-        params = ["-crf", "18", "-preset", "veryfast", "-movflags", "+faststart"]
-        vf = video_filter(r, self.resolution)
-        if vf:
-            params = ["-vf", vf] + params
+        # Rohfassung: fast verlustfrei, volle Farbauflösung (4:4:4) – Schrift bleibt scharf
         writer = imageio_ffmpeg.write_frames(
             path, (r["width"], r["height"]), fps=self.fps, codec="libx264",
-            quality=None, macro_block_size=2, pix_fmt_in="rgb24", pix_fmt_out="yuv420p",
-            output_params=params,
+            quality=None, macro_block_size=2, pix_fmt_in="rgb24", pix_fmt_out="yuv444p",
+            output_params=["-crf", "10", "-preset", "ultrafast"],
         )
         writer.send(None)
         interval = 1.0 / self.fps

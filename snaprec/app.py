@@ -27,6 +27,7 @@ from snaprec.utils import (IS_WINDOWS, enable_dpi_awareness, format_size, format
 from snaprec.widgets import ControlBar, RegionFrame
 
 COUNTDOWN_VALUES = [0, 3, 5, 10]
+QUALITY_VALUES = {"Original": "original", "1080p": "1080p", "1440p": "1440p", "4K": "4k"}
 
 
 def font(size, weight="normal"):
@@ -63,7 +64,7 @@ class App:
         self.apply_icon(root)
         self._build_ui()
         root.bind("<Control-n>", lambda e: self.new_recording())
-        root.bind("<F1>", lambda e: self.show_intro())
+        root.bind("<F1>", lambda e: self.show_tour())
         root.bind("<Control-o>", lambda e: self.show_library())
         root.protocol("WM_DELETE_WINDOW", self.quit)
 
@@ -114,12 +115,15 @@ class App:
                      text_color=theme.MUTED, height=16).pack(anchor="w")
         icon_btn = dict(text="", width=38, height=38, corner_radius=12, fg_color=theme.SURFACE_2,
                         hover_color=theme.SURFACE_3)
-        ctk.CTkButton(head, image=theme.ctk_icon("gear", 18, theme.MUTED), command=self.show_settings,
-                      **icon_btn).pack(side="right")
-        ctk.CTkButton(head, image=theme.ctk_icon("help", 18, theme.MUTED), command=self.show_intro,
-                      **icon_btn).pack(side="right", padx=8)
-        ctk.CTkButton(head, image=theme.ctk_icon("film", 18, theme.MUTED), command=self.show_library,
-                      **icon_btn).pack(side="right")
+        self.gear_btn = ctk.CTkButton(head, image=theme.ctk_icon("gear", 18, theme.MUTED),
+                                      command=self.show_settings, **icon_btn)
+        self.gear_btn.pack(side="right")
+        self.help_btn = ctk.CTkButton(head, image=theme.ctk_icon("help", 18, theme.MUTED),
+                                      command=self.show_tour, **icon_btn)
+        self.help_btn.pack(side="right", padx=8)
+        self.film_btn = ctk.CTkButton(head, image=theme.ctk_icon("film", 18, theme.MUTED),
+                                      command=self.show_library, **icon_btn)
+        self.film_btn.pack(side="right")
 
         # Großer Aufnahme-Knopf + Vollbild
         actions = ctk.CTkFrame(wrap, fg_color="transparent")
@@ -159,6 +163,17 @@ class App:
             fg_color=theme.SURFACE_2, command=self._countdown_changed)
         self.countdown.set(countdown_label(self.cfg["countdown"]))
         self.countdown.pack(side="right", fill="x", expand=True)
+        rowq = ctk.CTkFrame(opts, fg_color="transparent")
+        rowq.pack(fill="x", padx=(18, 14), pady=4)
+        ctk.CTkLabel(rowq, text="Qualität", font=font(13, "bold"), text_color=theme.TEXT,
+                     width=86, anchor="w").pack(side="left")
+        self.quality = ctk.CTkSegmentedButton(
+            rowq, values=list(QUALITY_VALUES), font=font(13), height=34,
+            selected_color=theme.ACCENT, selected_hover_color=theme.ACCENT_HOVER,
+            unselected_color=theme.SURFACE_2, unselected_hover_color=theme.SURFACE_3,
+            fg_color=theme.SURFACE_2, command=self._quality_changed)
+        self.quality.pack(side="right", fill="x", expand=True)
+        self.set_quality(self.cfg.get("resolution", "1080p"))
         row2 = ctk.CTkFrame(opts, fg_color="transparent")
         row2.pack(fill="x", padx=(18, 14), pady=(4, 12))
         ctk.CTkLabel(row2, text="Ton", font=font(13, "bold"), text_color=theme.TEXT,
@@ -187,6 +202,8 @@ class App:
                                         anchor="w", height=18)
         self.result_info.pack(fill="x")
         self.result_warn = ctk.CTkLabel(texts, text="", font=font(11), text_color=theme.PAUSE,
+                                        anchor="w", justify="left", wraplength=300)
+        self.result_hint = ctk.CTkLabel(texts, text="", font=font(11), text_color="#b9a8ff",
                                         anchor="w", justify="left", wraplength=300)
         btns = ctk.CTkFrame(self.result, fg_color="transparent")
         btns.pack(fill="x", padx=16, pady=(0, 14))
@@ -223,9 +240,21 @@ class App:
         root.minsize(440, 0)
 
     def refresh_footer(self):
-        res = "1080p" if self.cfg.get("resolution") == "1080p" else "Originalgröße"
+        from snaprec.processing import RESOLUTION_LABELS
+        res = RESOLUTION_LABELS.get(self.cfg.get("resolution", "1080p"), "1080p")
         self.footer.configure(
             text=f"  {short_path(self.cfg['output_dir'], 32)}   ·   {res}  ·  {self.cfg['fps']} fps")
+
+    def set_quality(self, resolution):
+        label = next((k for k, v in QUALITY_VALUES.items() if v == resolution), "1080p")
+        self.quality.set(label)
+
+    def _quality_changed(self, value):
+        self.cfg["resolution"] = QUALITY_VALUES[value]
+        self.save()
+        self.refresh_footer()
+        if self.settings_window and self.settings_window.winfo_exists():
+            self.settings_window.resolution.set(value)
 
     def _style_audio_buttons(self):
         for key, (btn, icon) in self.audio_btns.items():
@@ -314,6 +343,14 @@ class App:
         from snaprec.settings import SettingsWindow
         self.settings_window = SettingsWindow(self)
 
+    def show_tour(self):
+        if getattr(self, "tour", None) is not None and self.tour.winfo_exists():
+            return
+        if self.recorder or self.overlay:
+            return
+        from snaprec.tour import Tour
+        self.tour = Tour(self, on_close=lambda: setattr(self, "tour", None))
+
     def show_intro(self):
         if self.intro_window and self.intro_window.winfo_exists():
             self.intro_window.lift()
@@ -325,6 +362,7 @@ class App:
             if not self.cfg.get("intro_seen"):
                 self.cfg["intro_seen"] = True
                 self.save()
+                self.root.after(350, self.show_tour)   # beim ersten Start: danach die Tour
         self.intro_window = show_intro(self.root, closed)
         self.apply_icon(self.intro_window)
 
@@ -448,22 +486,39 @@ class App:
             if rec.is_alive():
                 self.root.after(100, wait)
                 return
-            self.recorder = None
             self.progress.stop()
             self.saving.pack_forget()
             if rec.error:
+                self.recorder = None
                 messagebox.showerror(APP_NAME, f"Aufnahme fehlgeschlagen:\n{rec.error}", parent=self.root)
-            else:
-                self.last_file = rec.path
-                self._show_result(rec)
+                return
+            # Smarte Nachbearbeitung mit Ladebildschirm
+            from snaprec.loading import LoadingWindow
+            proc = rec.make_processor()
+            proc.start()
+            LoadingWindow(self, proc, lambda p: self._processing_done(rec, p))
         wait()
 
-    def _show_result(self, rec):
+    def _processing_done(self, rec, proc):
+        self.recorder = None
+        if proc.error:
+            messagebox.showerror(APP_NAME, f"Das Video konnte nicht fertig verarbeitet werden:\n{proc.error}"
+                                 + ("\n\nDie Rohaufnahme wurde trotzdem gespeichert."
+                                    if os.path.exists(rec.path) else ""), parent=self.root)
+            if not os.path.exists(rec.path):
+                return
+        self.last_file = rec.path
+        self._show_result(rec, proc)
+
+    def _show_result(self, rec, proc=None):
         try:
             size = format_size(os.path.getsize(rec.path))
         except OSError:
             size = ""
+        from snaprec.processing import RESOLUTION_LABELS
         w, h = rec.size
+        if proc is not None and (proc.skipped_upscale or proc.error):
+            w, h = rec.region["width"] // 2 * 2, rec.region["height"] // 2 * 2
         sound = "mit Ton" if rec.audio_names else "ohne Ton"
         self.result_info.configure(
             text=f"{Path(rec.path).name}\n{format_time(rec.elapsed)}  ·  {w}×{h}  ·  {sound}  ·  {size}",
@@ -471,12 +526,17 @@ class App:
         if self.library_window and self.library_window.winfo_exists():
             self.library_window.refresh()
         notes = list(rec.warnings)
-        from snaprec.recorder import upscale_factor
-        r = rec.region
-        if upscale_factor(r, rec.resolution) > 1.25:
-            notes.append(f"Der Bereich hatte nur {r['width']}×{r['height']} Pixel und wurde auf "
-                         f"{w}×{h} hochskaliert – für maximale Schärfe einen größeren Bereich "
-                         f"oder Vollbild aufnehmen.")
+        if proc is not None and proc.analysis and not proc.skipped_upscale and not proc.error:
+            r = rec.region
+            self.result_title.configure(text=f"Gespeichert in {RESOLUTION_LABELS.get(rec.resolution, '')}")
+            self.result_hint.configure(
+                text=f"✨ Smart hochskaliert von {r['width']}×{r['height']} · {proc.analysis.short} erkannt")
+            self.result_hint.pack(fill="x", pady=(4, 0))
+        else:
+            self.result_title.configure(text="Aufnahme gespeichert")
+            self.result_hint.pack_forget()
+        if proc is not None and proc.skipped_upscale:
+            notes.append("Hochskalieren übersprungen – in Originalgröße gespeichert.")
         if notes:
             self.result_warn.configure(text="⚠ " + "\n⚠ ".join(notes))
             self.result_warn.pack(fill="x", pady=(4, 0))
@@ -539,8 +599,26 @@ def selftest(report_path):
         muxed = path.replace(".mp4", "_ton.mp4")
         audio.mux(path, [(pcm, 1)], muxed, 1.0)
         lines.append(f"ton: ok ({os.path.getsize(muxed)} Bytes)")
-        for p in (path, pcm, muxed):
-            os.remove(p)
+        # Smartes Hochskalieren (prüft auch, ob ffmpeg xbr/cas kennt)
+        from snaprec import processing
+        filters = processing.available_filters()
+        lines.append("filter: " + ", ".join(f for f in ("xbr", "cas", "hqdn3d") if f in filters))
+        raw = path.replace(".mp4", "_roh.mp4")
+        writer = imageio_ffmpeg.write_frames(raw, (64, 48), fps=10, codec="libx264",
+                                             macro_block_size=2, pix_fmt_out="yuv444p")
+        writer.send(None)
+        for i in range(10):
+            writer.send(bytes([i * 20 % 256]) * (64 * 48 * 3))
+        writer.close()
+        upscaled = path.replace(".mp4", "_1080p.mp4")
+        proc = processing.Processor(raw, [(pcm, 1)], upscaled, (64, 48), "1080p", 1.0)
+        proc.run()
+        if proc.error:
+            raise proc.error
+        lines.append(f"hochskalieren: ok ({proc.plan.size[0]}x{proc.plan.size[1]}, {proc.analysis.short})")
+        for p in (path, pcm, muxed, upscaled):
+            if os.path.exists(p):
+                os.remove(p)
     except Exception:
         ok = False
         lines.append(traceback.format_exc())

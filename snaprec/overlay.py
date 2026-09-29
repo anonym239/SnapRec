@@ -24,7 +24,8 @@ class SelectionOverlay(tk.Toplevel):
         self.countdown = countdown
         self.resolution = resolution
         # Bei 1080p rastet die Auswahl auf 16:9 bzw. 9:16 ein (Shift = frei)
-        self.lock_ratio = resolution == "1080p"
+        from snaprec.processing import TARGETS
+        self.lock_ratio = resolution in TARGETS
         self.screen, self.monitors = virtual_screen()
         s = self.screen
 
@@ -121,14 +122,13 @@ class SelectionOverlay(tk.Toplevel):
         w, h = (right - left) // 2 * 2, (bottom - top) // 2 * 2
         text = f"{w} × {h}"
         fg = theme.TEXT
-        if self.resolution == "1080p" and w > 0 and h > 0:
-            from snaprec.recorder import output_size, upscale_factor
-            region = {"width": w, "height": h}
-            ow, oh = output_size(region, "1080p")
-            text += f"   →   {ow} × {oh}"
-            if upscale_factor(region, "1080p") > 1.25:
-                text += "  ·  wird hochskaliert, größer = schärfer"
-                fg = theme.PAUSE
+        if self.lock_ratio and w > 0 and h > 0:
+            from snaprec.processing import RESOLUTION_LABELS, output_size, upscale_factor
+            ow, oh = output_size(w, h, self.resolution)
+            text += f"   →   {RESOLUTION_LABELS[self.resolution]}  ({ow} × {oh})"
+            if upscale_factor(w, h, self.resolution) > 1.05:
+                text += "  ·  wird smart hochskaliert"
+                fg = "#b9a8ff"
         label = theme.pill(text, 28, fg=fg)
         ly = top - label.height - 8 if top > label.height + 12 else bottom + 8
         self._place_image(self._size_item, label, left, ly)

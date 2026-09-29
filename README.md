@@ -5,7 +5,7 @@
 # SnapRec
 
 **Bildschirmbereich aufnehmen – so einfach wie mit dem Snipping Tool.**<br>
-Bildschirm wird grau · Bereich aufziehen · Countdown · fertiges MP4 in 1080p – auf Wunsch mit Ton.
+Bildschirm wird grau · Bereich aufziehen · Countdown · fertiges MP4 in 1080p, 1440p oder 4K – smart hochskaliert, auf Wunsch mit Ton.
 
 [![Download für Windows](https://img.shields.io/badge/Download-SnapRec--Setup.exe-7c5cff?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/anonym239/SnapRec/releases/latest/download/SnapRec-Setup.exe)
 
@@ -40,8 +40,8 @@ Aus, **3**, 5 oder 10 Sekunden – mit animiertem Ring direkt über deinem Berei
 </td>
 <td width="33%" valign="top">
 
-### 🎬 Immer 1080p
-Jedes Video wird in **1080p** (H.264-MP4) gespeichert: quer als 1920 × 1080, hochkant als 1080 × 1920 (TikTok/Shorts). Die Auswahl rastet auf 16:9 bzw. 9:16 ein (<kbd>Shift</kbd> = frei) – so gibt es keine schwarzen Ränder.
+### 🎬 1080p · 1440p · 4K
+Wähle die Qualität – quer (z. B. 3840 × 2160) oder hochkant (2160 × 3840). Ist dein Bereich kleiner, **analysiert SnapRec das Video und skaliert es smart hoch** – mit Ladebildschirm.
 
 </td>
 </tr>
@@ -87,6 +87,30 @@ Mehrere Monitore, Mauszeiger optional, 15–60 fps, Speicherort frei wählbar, a
 </tr>
 </table>
 
+## ✨ Smartes Hochskalieren
+
+Du nimmst z. B. einen kleinen 736p-Bereich auf, willst aber ein 1080p-, 1440p- oder 4K-Video? SnapRec speichert zuerst eine fast verlustfreie Rohfassung und **analysiert** danach das Bild:
+
+| Erkannt | Methode |
+|---|---|
+| **Bildschirm-Inhalt** (Text, Fenster, Knöpfe) | xBR-Kantenvergrößerung → Lanczos → kontrastadaptive Schärfung (CAS) – Schrift bleibt knackig |
+| **Video- / Foto-Inhalt** | Kompressions-Artefakte entfernen → Lanczos → CAS |
+| Quelle schon weich | stärkere Schärfung |
+| Bereich größer als Ziel (z. B. 4K-Monitor → 1080p) | sauberes Verkleinern (Lanczos) |
+
+<p align="center"><img src="docs/hochskalieren.png" width="720" alt="Vergleich: einfach vergrößert vs. SnapRec smart"><br><sub>Links: einfach vergrößert · Rechts: SnapRec smart hochskaliert</sub></p>
+
+<p align="center"><img src="docs/ladebildschirm.png" width="440" alt="Ladebildschirm"><br><sub>Ladebildschirm mit Analyse, Fortschritt und Restzeit – „Überspringen“ speichert in Originalgröße</sub></p>
+
+> [!NOTE]
+> Hochskalieren macht das Bild deutlich schärfer als einfaches Vergrößern – echte Details, die nie aufgenommen wurden, kann aber kein Programm erfinden. Am schärfsten wird es mit **Vollbild** oder einem großen Bereich.
+
+## 🧭 Kurze Tour im Programm
+
+Beim ersten Start – und jederzeit über **?** oder <kbd>F1</kbd> – zeigt SnapRec direkt im Fenster, was jeder Knopf macht: Spotlight, Pfeil und kurze Beschriftung, Schritt für Schritt.
+
+<p align="center"><img src="docs/tour.png" width="620" alt="Tour: Knöpfe mit Pfeil und Beschriftung"></p>
+
 ## 📸 So sieht's aus
 
 <table>
@@ -100,15 +124,12 @@ Mehrere Monitore, Mauszeiger optional, 15–60 fps, Speicherort frei wählbar, a
 </tr>
 <tr>
 <td align="center"><img src="docs/aufnahme.png" width="420"><br><sub>③ Aufnahme mit Pause & Stopp</sub></td>
-<td align="center"><img src="docs/gespeichert.png" width="330"><br><sub>④ Gespeichert – 1080p mit Ton</sub></td>
+<td align="center"><img src="docs/gespeichert.png" width="330"><br><sub>④ Gespeichert – smart hochskaliert</sub></td>
 </tr>
 <tr>
 <td align="center" colspan="2"><img src="docs/aufnahmen.png" width="420"><br><sub>Meine Aufnahmen – abspielen & löschen</sub></td>
 </tr>
 </table>
-
-> [!TIP]
-> **Tipp für maximale Schärfe:** 1080p kann nur so scharf sein wie der aufgenommene Bereich. Ein kleiner Bereich wird hochskaliert (SnapRec zeigt das beim Aufziehen an). Am schärfsten wird es mit **Vollbild** oder einem Bereich ab 1920 × 1080 Pixeln.
 
 ## 🚀 Loslegen
 
@@ -129,15 +150,13 @@ Mehrere Monitore, Mauszeiger optional, 15–60 fps, Speicherort frei wählbar, a
 git clone https://github.com/anonym239/SnapRec.git
 cd SnapRec
 ```
-- **Windows:** `start_windows.bat` doppelklicken
+- **Windows:** `start_windows.bat` doppelklicken. **Ist kein Python installiert, erledigt der Starter das automatisch:** Er erkennt Windows-Version und Prozessor (x64 / ARM64 / 32-Bit), sucht bei python.org die neueste stabile Python-Version, prüft die digitale Signatur der Python Software Foundation und installiert sie still und **ohne Admin-Rechte**. Danach richtet er alles ein und startet SnapRec.
 - **Linux / macOS:** `./start.sh`
 
-Beim ersten Start werden die Pakete automatisch installiert. Oder manuell:
-`pip install -r requirements.txt` und `python -m snaprec`.
-
 > [!TIP]
-> **Linux:** Tkinter wird benötigt (`sudo apt install python3-tk`) und eine X11-Sitzung – unter Wayland bitte „… auf Xorg“ wählen.
-> **macOS:** Dem Terminal die Rechte *Bildschirmaufnahme* und *Bedienungshilfen* (für Tastenkürzel) geben.
+> **Schul- oder Arbeits-PC?** Am einfachsten ist die **SnapRec-Setup.exe** – dort ist Python schon enthalten, es muss nichts zusätzlich installiert werden und Admin-Rechte sind nicht nötig.
+>
+> **Linux:** Tkinter wird benötigt (`sudo apt install python3-tk`) und eine X11-Sitzung. **macOS:** dem Terminal die Rechte *Bildschirmaufnahme* und *Bedienungshilfen* geben.
 
 ## ⌨️ Bedienung
 
@@ -148,7 +167,7 @@ Beim ersten Start werden die Pakete automatisch installiert. Oder manuell:
 | Ganzen Bildschirm aufnehmen | <kbd>Strg</kbd> + <kbd>Alt</kbd> + <kbd>F</kbd> | ✅ |
 | Neue Aufnahme (im Fenster) | <kbd>Strg</kbd> + <kbd>N</kbd> | |
 | Meine Aufnahmen öffnen | <kbd>Strg</kbd> + <kbd>O</kbd> (im Fenster) | ✅ global |
-| Einführung anzeigen | <kbd>F1</kbd> | |
+| Tour durchs Programm | <kbd>F1</kbd> oder **?** | |
 | Ganzer Monitor (im grauen Bildschirm) | Doppelklick oder <kbd>Enter</kbd> | |
 | Frei aufziehen (ohne 16:9-Einrasten) | <kbd>Shift</kbd> beim Ziehen gedrückt halten | |
 | Auswahl / Countdown abbrechen | <kbd>Esc</kbd> oder Rechtsklick | |
@@ -179,7 +198,10 @@ SnapRec.exe [-c SEKUNDEN] [--fps FPS] [-o ORDNER] [--no-cursor] [-s | -f]
 snaprec/
 ├── app.py        Hauptfenster & Ablauf
 ├── overlay.py    grauer Bildschirm + animierter Countdown
-├── recorder.py   Aufnahme-Thread (mss → ffmpeg/H.264, 1080p)
+├── recorder.py   Aufnahme-Thread (mss → fast verlustfreie Rohfassung)
+├── processing.py Analyse & smartes Hochskalieren (1080p/1440p/4K), Ton einmischen
+├── loading.py    Ladebildschirm mit Fortschritt
+├── tour.py       Tour mit Spotlight, Pfeilen und Beschriftungen
 ├── audio.py      Ton: PC-Sound (Loopback) & Mikrofon, Mischen zu AAC
 ├── library.py    „Meine Aufnahmen“: Liste, Vorschau, Löschen
 ├── widgets.py    Rahmen & Steuerleiste während der Aufnahme

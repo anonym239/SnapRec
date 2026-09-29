@@ -116,6 +116,7 @@ def test_recorder_writes_playable_mp4(tmp_path):
     rec.stop()
     rec.join(timeout=20)
     assert rec.error is None
+    rec.process()
     assert os.path.getsize(path) > 0
 
     info = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-i", path],
@@ -180,14 +181,15 @@ def _streams(path):
                           capture_output=True, text=True).stderr
 
 
-def test_output_size_and_filter():
-    from snaprec import recorder
-    region = utils.normalize_region(0, 0, 800, 600)
-    assert recorder.output_size(region, "1080p") == (1920, 1080)
-    assert recorder.output_size(region, "original") == (800, 600)
-    assert "pad=1920:1080" in recorder.video_filter(region, "1080p")
-    assert recorder.video_filter(region, "original") is None
-    assert recorder.video_filter(utils.normalize_region(0, 0, 1920, 1080), "1080p") is None
+def test_output_sizes_for_all_qualities():
+    from snaprec import processing as pr
+    assert pr.output_size(800, 600, "1080p") == (1920, 1080)
+    assert pr.output_size(800, 600, "1440p") == (2560, 1440)
+    assert pr.output_size(800, 600, "4k") == (3840, 2160)
+    assert pr.output_size(562, 1000, "4k") == (2160, 3840)     # hochkant
+    assert pr.output_size(801, 601, "original") == (800, 600)
+    assert pr.upscale_factor(1280, 720, "1080p") == 1.5
+    assert pr.upscale_factor(3840, 2160, "1080p") == 0.5
 
 
 @needs_display
@@ -200,6 +202,7 @@ def test_recording_1080p_with_audio(tmp_path):
     rec.stop()
     rec.join(timeout=30)
     assert rec.error is None and rec.warnings == []
+    rec.process()
     assert rec.audio_names == ["Mikrofon"]
     info = _streams(path)
     assert "1920x1080" in info
@@ -222,6 +225,7 @@ def test_missing_audio_device_still_saves_video(tmp_path):
     rec.stop()
     rec.join(timeout=30)
     assert rec.error is None
+    rec.process()
     assert rec.warnings and "Kein Mikrofon" in rec.warnings[0]
     info = _streams(path)
     assert "200x150" in info and "Audio" not in info
@@ -268,11 +272,6 @@ def test_portrait_region_becomes_vertical_1080p():
     portrait = utils.normalize_region(0, 0, 562, 1000)
     assert recorder.output_size(portrait, "1080p") == (1080, 1920)
     assert recorder.upscale_factor(portrait, "1080p") > 1.9
-    vf = recorder.video_filter(portrait, "1080p")
-    assert "unsharp" in vf                      # beim Vergrößern nachschärfen
-    exact = utils.normalize_region(0, 0, 608, 1080)   # 9:16 -> keine Ränder nötig
-    assert "pad=" not in recorder.video_filter(exact, "1080p")
-    assert recorder.video_filter(utils.normalize_region(0, 0, 2560, 1440), "1080p").startswith("scale=1920:1080")
 
 
 def test_selection_snaps_to_16_9_and_9_16():
@@ -298,4 +297,103 @@ def test_portrait_recording_is_1080x1920(tmp_path):
     rec.stop()
     rec.join(timeout=30)
     assert rec.error is None
+    proc = rec.process()
     assert "1080x1920" in _streams(path)
+    assert proc.analysis is not None and proc.plan.factor > 1
+
+
+# ---- Smarte Analyse & Hochskalieren ----------------------------------------
+
+def _ui_image():
+    """Künstlicher Bildschirm-Inhalt: einfarbige Flächen, Text-Balken."""
+    from PIL import Image, ImageDraw
+    img = Image.new("RGB", (640, 360), (238, 241, 247))
+    d = ImageDraw.Draw(img)
+    d.rectangle((0, 0, 640, 40), fill=(40, 44, 52))
+    for i in range(8):
+        d.rectangle((30, 70 + i * 32, 30 + 60 * (i % 5 + 3), 82 + i * 32), fill=(60, 66, 80))
+    d.rectangle((420, 90, 600, 300), fill=(124, 92, 255))
+    return img
+
+
+def _photo_image(seed=1):
+    """Künstlicher Foto-Inhalt: weiche Verläufe und Rauschen."""
+    import random
+    from PIL import Image, ImageFilter
+    rnd = random.Random(seed)
+    grad = Image.linear_gradient("L").resize((640, 360))
+    chans = [Image.blend(Image.effect_noise((640, 360), 40 + 10 * i), grad.rotate(90 * i, expand=False), 0.6)
+             for i in range(3)]
+    img = Image.merge("RGB", chans).filter(ImageFilter.GaussianBlur(1))
+    return img.rotate(rnd.randint(0, 5))
+
+
+def test_analysis_detects_screen_and_video_content():
+    from snaprec import processing as pr
+    screen = pr.analyze_images([_ui_image() for _ in range(3)])
+    assert screen.content == "screen"
+    video = pr.analyze_images([_photo_image(i) for i in range(3)])
+    assert video.content == "video"
+    assert video.motion >= 0 and screen.frames == 3
+
+
+def test_plan_picks_method_by_content():
+    from snaprec import processing as pr
+    filters = frozenset({"xbr", "cas", "hqdn3d"})
+    screen = pr.Analysis(content="screen", sharpness=500)
+    plan = pr.build_plan(562, 1000, "1440p", screen, filters)
+    assert plan.size == (1440, 2560) and plan.video_filter.startswith("xbr=2,")
+    assert "cas=" in plan.video_filter and "lanczos" in plan.video_filter
+    video = pr.Analysis(content="video", sharpness=50)            # weich -> stärker schärfen
+    plan = pr.build_plan(1280, 720, "4k", video, filters)
+    assert plan.video_filter.startswith("hqdn3d") and "xbr" not in plan.video_filter
+    assert "cas=0.65" in plan.video_filter and plan.preset == "veryfast"
+    down = pr.build_plan(3840, 2160, "1080p", None, filters)       # verkleinern: kein Schärfen
+    assert "cas" not in down.video_filter and down.factor < 1
+    old = pr.build_plan(562, 1000, "1080p", screen, frozenset())   # ffmpeg ohne cas/xbr
+    assert "unsharp" in old.video_filter and "xbr" not in old.video_filter
+
+
+def test_processor_cancel_saves_original_size(tmp_path):
+    """„Überspringen“ im Ladebildschirm: Video trotzdem speichern, in Originalgröße."""
+    from snaprec import processing as pr
+    ff = imageio_ffmpeg.get_ffmpeg_exe()
+    raw = tmp_path / ".roh.mp4"
+    subprocess.run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=s=320x240:d=3:r=30",
+                    "-c:v", "libx264", "-pix_fmt", "yuv444p", str(raw)], check=True)
+    out = tmp_path / "fertig.mp4"
+    proc = pr.Processor(str(raw), [], str(out), (320, 240), "4k", 3.0)
+    proc.start()
+    while proc.phase == "analyse":
+        time.sleep(0.01)
+    proc.cancel()
+    proc.join(timeout=60)
+    assert proc.error is None and proc.skipped_upscale
+    assert "320x240" in _streams(out) and not raw.exists()
+
+
+def test_processor_reports_progress_and_cleans_up(tmp_path):
+    from snaprec import processing as pr
+    ff = imageio_ffmpeg.get_ffmpeg_exe()
+    raw = tmp_path / ".roh.mp4"
+    subprocess.run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=s=640x360:d=2:r=30",
+                    "-c:v", "libx264", "-pix_fmt", "yuv444p", str(raw)], check=True)
+    out = tmp_path / "fertig.mp4"
+    proc = pr.Processor(str(raw), [], str(out), (640, 360), "1080p", 2.0)
+    seen = []
+    proc.start()
+    while proc.is_alive():
+        seen.append(proc.progress)
+        time.sleep(0.02)
+    assert proc.error is None and proc.progress == 1.0 and proc.analysis is not None
+    assert "1920x1080" in _streams(out) and "yuv420p" in _streams(out)
+    assert not raw.exists()
+
+
+def test_empty_recording_gives_clear_error(tmp_path):
+    from snaprec import processing as pr
+    raw = tmp_path / ".roh.mp4"
+    raw.write_bytes(b"")
+    proc = pr.Processor(str(raw), [], str(tmp_path / "x.mp4"), (100, 100), "1080p", 1.0)
+    proc.run()
+    assert proc.error is not None and "zu kurz" in str(proc.error)

@@ -38,6 +38,10 @@ VersionInfoVersion={#AppVersion}
 Name: "german"; MessagesFile: "compiler:Languages\German.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[Messages]
+german.WelcomeLabel2=Dieses Programm installiert [name/ver] auf deinem Computer.%n%nAlles Nötige ist schon enthalten – Python muss NICHT installiert sein und Admin-Rechte sind nicht nötig. Ideal auch für Schul- und Arbeits-PCs.
+english.WelcomeLabel2=This will install [name/ver] on your computer.%n%nEverything is included – Python is NOT required and no admin rights are needed.
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 

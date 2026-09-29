@@ -130,13 +130,14 @@ class SettingsWindow(ctk.CTkToplevel):
         c.pack(fill="x", pady=(0, 12))
         r = row(c, "Auflösung")
         self.resolution = ctk.CTkSegmentedButton(
-            r, values=["1080p", "Original"], font=font(12), height=32,
+            r, values=["Original", "1080p", "1440p", "4K"], font=font(12), height=32,
             selected_color=theme.ACCENT, selected_hover_color=theme.ACCENT_HOVER,
             unselected_color=theme.SURFACE_2, unselected_hover_color=theme.SURFACE_3,
             fg_color=theme.SURFACE_2, command=self._resolution_changed)
-        self.resolution.set("1080p" if self.cfg.get("resolution", "1080p") == "1080p" else "Original")
+        self.resolution.set({"original": "Original", "1440p": "1440p", "4k": "4K"}.get(
+            self.cfg.get("resolution", "1080p"), "1080p"))
         self.resolution.pack(side="right")
-        ctk.CTkLabel(c, text="1080p = 1920 × 1080 (quer) bzw. 1080 × 1920 (hochkant). Auswahl rastet auf 16:9 ein.",
+        ctk.CTkLabel(c, text="Kleinere Bereiche werden nach der Aufnahme smart hochskaliert. Auswahl rastet auf 16:9 ein.",
                      font=font(11), text_color=theme.MUTED, anchor="w").pack(fill="x", padx=18)
         r = row(c, "Bildrate")
         self.fps = ctk.CTkSegmentedButton(
@@ -212,8 +213,9 @@ class SettingsWindow(ctk.CTkToplevel):
         self.app.refresh_footer()
 
     def _resolution_changed(self, value):
-        self.cfg["resolution"] = "1080p" if value == "1080p" else "original"
+        self.cfg["resolution"] = {"Original": "original", "1440p": "1440p", "4K": "4k"}.get(value, "1080p")
         self.app.save()
+        self.app.set_quality(self.cfg["resolution"])
         self.app.refresh_footer()
 
     def _cursor_changed(self):

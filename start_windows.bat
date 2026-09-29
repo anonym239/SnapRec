@@ -1,8 +1,5 @@
 @echo off
+rem SnapRec starten (Quellcode-Version). Fehlt Python, wird es automatisch installiert.
 cd /d "%~dp0"
-if not exist .venv (
-  echo Erster Start: Pakete werden installiert ...
-  py -3 -m venv .venv || python -m venv .venv
-  .venv\Scripts\python -m pip install -q -r requirements.txt
-)
-start "" .venv\Scripts\pythonw -m snaprec %*
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0start_windows.ps1" %*
+if errorlevel 1 pause

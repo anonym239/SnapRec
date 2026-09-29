@@ -9,15 +9,16 @@ Windows 10/11, kein Python nötig.
 
 ## 🆕 Neu in dieser Version
 
-- Hochkant-Bereiche werden jetzt als **1080 × 1920** gespeichert statt mit großen schwarzen Rändern in 1920 × 1080
-- Auswahl rastet auf 16:9 / 9:16 ein, Hinweis beim Aufziehen, wenn hochskaliert wird
-- Schärferes Bild (höhere Qualität, Nachschärfen beim Vergrößern)
+- **Qualität 1080p, 1440p oder 4K** – direkt im Hauptfenster wählbar (quer und hochkant)
+- **Smartes Hochskalieren:** Ist der Bereich kleiner als die gewählte Qualität, analysiert SnapRec das Video (Bildschirm- oder Video-Inhalt, Schärfe) und wählt die beste Methode – mit Ladebildschirm, Fortschritt und Restzeit
+- **Tour durchs Programm:** Spotlight, Pfeil und kurze Beschriftung für jeden Knopf (? oder F1)
+- **Quellcode-Starter installiert Python automatisch**, falls es fehlt (neueste stabile Version, passend zu Windows & Prozessor, ohne Admin-Rechte). Die Setup.exe braucht weiterhin kein Python.
 
 ## ✨ Funktionen
 
 - 🖱️ **Bereich aufziehen** wie beim Snipping Tool – der Bildschirm wird grau, der Bereich hell
 - ⏱️ **Countdown** mit animiertem Ring: aus, 3, 5 oder 10 Sekunden
-- 🎬 **Immer 1080p** – quer 1920 × 1080, hochkant 1080 × 1920; Auswahl rastet auf 16:9/9:16 ein (Shift = frei), keine schwarzen Ränder mehr
+- 🎬 **1080p · 1440p · 4K** – quer oder hochkant, Auswahl rastet auf 16:9/9:16 ein (Shift = frei), kleinere Bereiche werden smart hochskaliert
 - 🔊 **Ton**: PC-Sound und/oder Mikrofon – 48 kHz Stereo, AAC 320 kbit/s
 - 🗂️ **Meine Aufnahmen**: Vorschau, abspielen und löschen (Papierkorb)
 - ⏸️ **Pause & Stopp** über eine schwebende Leiste, die nicht mit aufgenommen wird
