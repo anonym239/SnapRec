@@ -38,25 +38,33 @@ function Test-Python($exe, $extra = @()) {
     return $null
 }
 
+function Resolve-PythonExe($exe, $extra) {
+    if ($exe -eq 'py') {
+        return (& py -3 -c "import sys; print(sys.executable)" 2>$null | Select-Object -Last 1).Trim()
+    }
+    return $exe
+}
+
 function Find-Python {
-    $candidates = @()
-    if (Get-Command py -ErrorAction SilentlyContinue) { $candidates += , @('py', @('-3')) }
-    if (Get-Command python -ErrorAction SilentlyContinue) {
-        $p = (Get-Command python).Source
-        if ($p -notlike '*\WindowsApps\*') { $candidates += , @($p, @()) }   # Store-Platzhalter überspringen
+    # Schnell zuerst: py-Launcher und python im PATH (Store-Platzhalter überspringen)
+    if (Get-Command py -ErrorAction SilentlyContinue) {
+        $v = Test-Python 'py' @('-3')
+        if ($v) { return @{ Exe = (Resolve-PythonExe 'py'); Version = $v } }
     }
-    $dirs = @("$env:LOCALAPPDATA\Programs\Python", "$env:ProgramFiles\Python*", "${env:ProgramFiles(x86)}\Python*")
-    foreach ($d in $dirs) {
-        Get-ChildItem -Path $d -Filter python.exe -Recurse -Depth 2 -ErrorAction SilentlyContinue |
-            Sort-Object FullName -Descending | ForEach-Object { $candidates += , @($_.FullName, @()) }
+    $cmd = Get-Command python -ErrorAction SilentlyContinue
+    if ($cmd -and $cmd.Source -notlike '*\WindowsApps\*') {
+        $v = Test-Python $cmd.Source @()
+        if ($v) { return @{ Exe = $cmd.Source; Version = $v } }
     }
-    foreach ($c in $candidates) {
-        $v = Test-Python $c[0] $c[1]
-        if ($v) {
-            if ($c[0] -eq 'py') {
-                $exe = (& py -3 -c "import sys; print(sys.executable)" 2>$null | Select-Object -Last 1).Trim()
-            } else { $exe = $c[0] }
-            return @{ Exe = $exe; Version = $v }
+    # Dann die üblichen Installationsordner - nur direkt, ohne ganze Laufwerke zu durchsuchen
+    $roots = @("$env:LOCALAPPDATA\Programs\Python\Python3*", "$env:ProgramFiles\Python3*",
+               "${env:ProgramFiles(x86)}\Python3*")
+    $dirs = foreach ($r in $roots) { Get-Item -Path $r -ErrorAction SilentlyContinue }
+    foreach ($d in ($dirs | Sort-Object Name -Descending)) {
+        $exe = Join-Path $d.FullName 'python.exe'
+        if (Test-Path $exe) {
+            $v = Test-Python $exe @()
+            if ($v) { return @{ Exe = $exe; Version = $v } }
         }
     }
     return $null
