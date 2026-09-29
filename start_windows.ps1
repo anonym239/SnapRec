@@ -1,13 +1,13 @@
-<#
+﻿<#
   SnapRec-Starter für Windows (Quellcode-Version)
 
   1. Sucht ein passendes Python (ab 3.9, mit Tkinter).
   2. Fehlt es: erkennt Windows-Version und Prozessor (x64 / ARM64 / 32-Bit),
      ermittelt bei python.org die neueste stabile Python-Version und installiert
-     sie automatisch – ohne Admin-Rechte, nur für den aktuellen Benutzer.
+     sie automatisch - ohne Admin-Rechte, nur für den aktuellen Benutzer.
   3. Legt eine eigene Umgebung (.venv) an, installiert die Pakete und startet SnapRec.
 
-  Tipp: Die fertige SnapRec-Setup.exe braucht das alles nicht – dort ist Python schon enthalten.
+  Tipp: Die fertige SnapRec-Setup.exe braucht das alles nicht - dort ist Python schon enthalten.
 
   Aufruf:  start_windows.bat            (normal)
            start_windows.ps1 -DryRun    (nur anzeigen, was passieren würde)
@@ -94,7 +94,7 @@ function Get-StableVersions {
             if (-not $r.pre_release -and $r.name -match '^Python (3\.\d+\.\d+)$') { $versions += [version]$Matches[1] }
         }
     } catch {
-        Say "python.org-API nicht erreichbar, lese Download-Seite …" 'DarkGray'
+        Say "python.org-API nicht erreichbar, lese Download-Seite ..." 'DarkGray'
     }
     if (-not $versions) {
         $html = (Invoke-WebRequest -Uri 'https://www.python.org/downloads/windows/' -UseBasicParsing -TimeoutSec 30).Content
@@ -104,15 +104,15 @@ function Get-StableVersions {
 }
 
 function Select-BestPython($arch) {
-    # Neueste Reihe, die schon ein Fehlerbehebungs-Update hat (x.y.1+) –
-    # so gibt es sicher fertige Pakete (numpy, Pillow …) dafür.
+    # Neueste Reihe, die schon ein Fehlerbehebungs-Update hat (x.y.1+) -
+    # so gibt es sicher fertige Pakete (numpy, Pillow ...) dafür.
     $all = Get-StableVersions
     if (-not $all) { throw 'Konnte die Python-Versionen nicht von python.org laden.' }
     $series = $all | Group-Object { "$($_.Major).$($_.Minor)" } |
         Sort-Object { [version]$_.Name } -Descending
     foreach ($s in $series) {
         $newest = $s.Group | Sort-Object -Descending | Select-Object -First 1
-        if ($newest.Build -lt 1) { continue }   # ganz neue Reihe (x.y.0) – noch abwarten
+        if ($newest.Build -lt 1) { continue }   # ganz neue Reihe (x.y.0) - noch abwarten
         foreach ($v in ($s.Group | Sort-Object -Descending)) {
             $url = Get-InstallerUrl $v $arch
             if (Test-Url $url) { return @{ Version = $v; Url = $url } }
@@ -126,28 +126,28 @@ function Install-Python {
     if ($os.Major -lt 10) { throw 'SnapRec braucht Windows 10 oder 11.' }
     $arch = Get-Arch
     Say "Windows $($os.Major) (Build $($os.Build)), Prozessor: $arch"
-    Say 'Suche die neueste stabile Python-Version …'
+    Say 'Suche die neueste stabile Python-Version ...'
     $best = Select-BestPython $arch
     Say "Gewählt: Python $($best.Version)" 'Cyan'
     Say "Quelle:  $($best.Url)" 'DarkGray'
     if ($DryRun) { return $null }
 
     $file = Join-Path $env:TEMP "python-$($best.Version)-snaprec.exe"
-    Say 'Lade herunter …'
+    Say 'Lade herunter ...'
     Invoke-WebRequest -Uri $best.Url -OutFile $file -UseBasicParsing -TimeoutSec 600
     $sig = Get-AuthenticodeSignature -FilePath $file
     if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'Python Software Foundation') {
         Remove-Item $file -ErrorAction SilentlyContinue
-        throw 'Die heruntergeladene Datei ist nicht korrekt von der Python Software Foundation signiert – abgebrochen.'
+        throw 'Die heruntergeladene Datei ist nicht korrekt von der Python Software Foundation signiert - abgebrochen.'
     }
-    Say 'Installiere Python (ohne Admin-Rechte, nur für diesen Benutzer) …'
+    Say 'Installiere Python (ohne Admin-Rechte, nur für diesen Benutzer) ...'
     $installArgs = @('/quiet', 'InstallAllUsers=0', 'PrependPath=1', 'Include_launcher=1',
               'InstallLauncherAllUsers=0', 'Include_tcltk=1', 'Include_pip=1',
               'Include_test=0', 'Include_doc=0', 'Shortcuts=0')
     $p = Start-Process -FilePath $file -ArgumentList $installArgs -Wait -PassThru
     Remove-Item $file -ErrorAction SilentlyContinue
     if ($p.ExitCode -ne 0) {
-        throw "Python-Installation fehlgeschlagen (Code $($p.ExitCode)). Auf Schul-PCs ist das manchmal gesperrt – nimm dann einfach die SnapRec-Setup.exe, dort ist Python schon enthalten."
+        throw "Python-Installation fehlgeschlagen (Code $($p.ExitCode)). Auf Schul-PCs ist das manchmal gesperrt - nimm dann einfach die SnapRec-Setup.exe, dort ist Python schon enthalten."
     }
     return Find-Python
 }
@@ -161,14 +161,14 @@ try {
         Say "Python $($py.Version) gefunden: $($py.Exe)" 'Green'
         if ($DryRun) { Say '(Probelauf: prüfe trotzdem, welche Version installiert würde)' 'DarkGray'; Install-Python | Out-Null }
     } else {
-        Say 'Kein passendes Python gefunden – wird jetzt automatisch installiert.' 'Yellow'
+        Say 'Kein passendes Python gefunden - wird jetzt automatisch installiert.' 'Yellow'
         $py = Install-Python
         if (-not $DryRun -and -not $py) { throw 'Python wurde installiert, aber nicht gefunden. Bitte das Fenster schließen und neu starten.' }
     }
-    if ($DryRun) { Say 'Probelauf beendet – nichts wurde verändert.' 'Green'; exit 0 }
+    if ($DryRun) { Say 'Probelauf beendet - nichts wurde verändert.' 'Green'; exit 0 }
 
     if (-not (Test-Path '.venv\Scripts\python.exe')) {
-        Say 'Richte SnapRec ein (einmalig, dauert kurz) …'
+        Say 'Richte SnapRec ein (einmalig, dauert kurz) ...'
         & $py.Exe -m venv .venv
         if ($LASTEXITCODE -ne 0) { throw 'Konnte die Umgebung (.venv) nicht anlegen.' }
         & .venv\Scripts\python.exe -m pip install --disable-pip-version-check -q --upgrade pip
@@ -178,7 +178,7 @@ try {
             throw 'Pakete konnten nicht installiert werden (Internet/Proxy?).'
         }
     }
-    Say 'Starte SnapRec …' 'Green'
+    Say 'Starte SnapRec ...' 'Green'
     Start-Process -FilePath '.venv\Scripts\pythonw.exe' -ArgumentList (@('-m', 'snaprec') + @($AppArgs | Where-Object { $_ }))
     exit 0
 } catch {

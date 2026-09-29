@@ -9,6 +9,8 @@ Windows 10/11, kein Python nötig.
 
 ## 🆕 Neu in dieser Version
 
+- Fix: Der Python-Starter (`start_windows.bat`) lief unter Windows PowerShell 5.1 nicht (Zeichenkodierung) – jetzt behoben und bei jedem Build automatisch geprüft
+
 - **Qualität 1080p, 1440p oder 4K** – direkt im Hauptfenster wählbar (quer und hochkant)
 - **Smartes Hochskalieren:** Ist der Bereich kleiner als die gewählte Qualität, analysiert SnapRec das Video (Bildschirm- oder Video-Inhalt, Schärfe) und wählt die beste Methode – mit Ladebildschirm, Fortschritt und Restzeit
 - **Tour durchs Programm:** Spotlight, Pfeil und kurze Beschriftung für jeden Knopf (? oder F1)

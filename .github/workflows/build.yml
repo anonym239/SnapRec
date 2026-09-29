@@ -77,10 +77,11 @@ jobs:
           if ($p.ExitCode -ne 0) { exit 1 }
           $p = Start-Process "$dir\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES' -Wait -PassThru
           if ($p.ExitCode -ne 0) { Write-Error "Deinstallation fehlgeschlagen"; exit 1 }
-      - name: Python-Automatik des Starters prüfen (Probelauf)
-        continue-on-error: true
+      - name: Python-Automatik des Starters prüfen (Probelauf, Windows PowerShell 5.1)
         shell: pwsh
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File start_windows.ps1 -DryRun
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File start_windows.ps1 -DryRun
+          if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Virenscan mit Windows Defender (nur zur Info)
         continue-on-error: true
         shell: pwsh
